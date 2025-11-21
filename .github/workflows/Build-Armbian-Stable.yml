@@ -63,7 +63,7 @@ on:
         type: choice
         description: "Armbian extension packages"
         options: [ 'mesa-vpu', ' ' ]
-        default: " "
+        default: "mesa-vpu"
 
       DOCKER:
         type: choice
