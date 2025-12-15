@@ -6,9 +6,7 @@ name: "Armbian Build Stable"
 #  Defines when this workflow will run.
 # ====================================================================
 on:
-  schedule:
-    - cron: '30 2 * * 5'
-    
+
   workflow_dispatch:
     inputs:
 
@@ -18,6 +16,8 @@ on:
         options:
         - lemonpi
         - som3588-cat
+        - radxa-cubie-a7a
+        - radxa-cubie-a7z
         - ufi001c
         - uz801
         - all
@@ -101,7 +101,7 @@ concurrency:
 env:
   DEFAULT_SCHEDULE_RELEASES: "plucky noble trixie"
   ALL_RELEASES: "bookworm bullseye buster focal jammy noble oracular plucky sid trixie"
-  BOARD: "lemonpi som3588-cat ufi001c uz801"
+  BOARD: "lemonpi som3588-cat ufi001c uz801 radxa-cubie-a7a radxa-cubie-a7z"
 
 # ====================================================================
 #  JOBS
