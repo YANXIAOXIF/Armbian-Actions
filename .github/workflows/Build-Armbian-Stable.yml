@@ -101,7 +101,7 @@ concurrency:
 env:
   DEFAULT_SCHEDULE_RELEASES: "plucky noble trixie"
   ALL_RELEASES: "bookworm bullseye buster focal jammy noble oracular plucky sid trixie"
-  BOARD: "lemonpi som3588-cat ufi001c uz801 radxa-cubie-a7a radxa-cubie-a7z"
+  BOARD: "lemonpi som3588-cat radxa-cubie-a7a radxa-cubie-a7z ufi001c uz801"
 
 # ====================================================================
 #  JOBS
@@ -185,11 +185,11 @@ jobs:
     needs: Prepare_Build
     name: "Build Kernel [${{ matrix.BOARD }} ${{ matrix.BRANCH }}]"
     runs-on: ubuntu-22.04
-    timeout-minutes: 300
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
-        BRANCH: [edge, vendor]
+        BRANCH: [vendor]
         BOARD: ${{ fromJson(needs.Prepare_Build.outputs.BOARD) }}
 
     steps:
@@ -279,7 +279,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        BRANCH: [ edge, vendor ]
+        BRANCH: [ vendor ]
         BOARD: ${{ fromJson(needs.Prepare_Build.outputs.BOARD) }} 
         RELEASE: ${{ fromJson(needs.Prepare_Build.outputs.RELEASE) }}
         DESKTOP: ${{ fromJson(needs.Prepare_Build.outputs.DESKTOP) }}
