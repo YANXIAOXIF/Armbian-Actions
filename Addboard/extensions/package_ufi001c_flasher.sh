@@ -130,6 +130,10 @@ fi
 # 5.4 准备构建boot.img的组件
 echo "    正在准备组件..."
 gzip -9 -c "${KERNEL_FILE}" > "${BOOT_BUILD_DIR}/Image.gz"
+
+# 将 Image.gz 填充到 2048 字节对齐
+truncate -s %2048 "${BOOT_BUILD_DIR}/Image.gz"
+
 cat "${BOOT_BUILD_DIR}/Image.gz" "${DTB_FILE}" > "${BOOT_BUILD_DIR}/kernel-dtb"
 cp "${INITRD_FILE}" "${BOOT_BUILD_DIR}/initrd.img"
 
