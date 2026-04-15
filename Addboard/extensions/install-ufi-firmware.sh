@@ -64,12 +64,6 @@ function post_install_kernel_debs__install_ufi_firmware_debs() {
     chroot_sdcard "
         set -e
 
-        echo 'INFO: 正在卸载 trimfs 自带的旧内核...'
-        apt-get purge -y linux-image-6.12.41-trim linux-image-6.1.0-39-arm64 || true
-        
-        echo ' 清理不再需要的孤立包'
-        apt-get autoremove --purge -y
-
         # Attempt to install .deb packages, ignoring initial dependency errors.
         dpkg -i /tmp/*.deb > /dev/null 2>&1 || true
         # Use apt to automatically fix any broken dependencies and complete the installation.
