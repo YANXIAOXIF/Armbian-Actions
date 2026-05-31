@@ -212,11 +212,19 @@ jobs:
           fetch-depth: 0
           clean: false
           path: os
-
+      - name: Enable noble-proposed repository
+        run: |
+          # 添加 noble-proposed 源
+          echo "deb http://archive.ubuntu.com/ubuntu/ noble-proposed main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/noble-proposed.list
+          
+          # 更新软件包列表
+          sudo apt-get update
+          
       - name: "Setup Kernel Build Environment"
         shell: bash
         run: |
           # Clean up runner to free up disk space.
+          echo "deb http://archive.ubuntu.com/ubuntu/ noble-proposed main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/noble-proposed.list
           sudo apt-get update
           sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* openjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
           sudo -E apt-get -qq autoremove --purge && sudo -E apt-get -qq clean
