@@ -226,14 +226,6 @@ jobs:
           clean: false
           path: os
 
-      #- name: Enable noble-proposed repository
-      #  run: |
-      #    # 添加 noble-proposed 源
-      #    echo "deb http://archive.ubuntu.com/ubuntu/ noble-proposed main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/noble-proposed.list
-      #    
-      #    # 更新软件包列表
-      #    sudo apt-get update
-          
       - name: "Setup Kernel Build Environment"
         shell: bash
         run: |
@@ -275,8 +267,7 @@ jobs:
             SHARE_LOG="yes" \
             MANAGE_ACNG="no" \
             BETA="${{ needs.Prepare_Build.outputs.NIGHTLY }}" \
-            PREFER_DOCKER="yes" \
-            DOCKER_ARMBIAN_BASE_IMAGE="debian:trixie" \
+            PREFER_DOCKER="${{ needs.Prepare_Build.outputs.DOCKER }}" \
             EXPERT="yes" \
             VENDOR=Armbian
 
@@ -353,8 +344,6 @@ jobs:
         run: |
           # Clean up the runner to ensure sufficient disk space.
           sudo apt-get update
-          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* openjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
-          sudo -E apt-get -qq autoremove --purge && sudo -E apt-get -qq clean
           sudo apt-get install -y mkbootimg android-sdk-libsparse-utils
           
           # Set build flags based on the desktop type for the compile script.
