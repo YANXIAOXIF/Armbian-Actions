@@ -368,7 +368,6 @@ jobs:
       - name: "Download Kernel Artifact"
         uses: actions/download-artifact@v8
         with:
-
           name: kernel-debs-${{ env.KERNEL_TARGET }}-${{ matrix.BRANCH }}
           path: ./prebuilt-kernel-debs
 
@@ -532,31 +531,6 @@ jobs:
           pattern: kernel-debs-*
           path: artifacts/debs
 
-      - name: "Install APT and Alpine repository tools"
-        shell: bash
-        run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends reprepro wget binutils tar
-          wget -q https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.6/x86_64/apk.static -O /tmp/apk.static
-          chmod +x /tmp/apk.static
-          sudo mv /tmp/apk.static /usr/local/bin/apk.static
-# ====================================================================
-  # JOB 4: Update APT and Alpine Repository 
-  # ====================================================================
-  Update_APT_Repo:
-    name: "Update APT & Alpine Repository"
-    runs-on: ubuntu-latest
-    needs: [Prepare_Build, Publish_Release]
-    if: success()
-    env:
-      GPG_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
-      RELEASES: ${{ needs.Prepare_Build.outputs.RELEASE_STRING }}
-
-    steps:
-      - name: "Download all kernel DEB packages"
-        uses: actions/download-artifact@v8
-        with:
-          pattern: kernel-debs-*
-          path: artifacts/debs
 
       - name: "Install APT and Alpine repository tools"
         shell: bash
