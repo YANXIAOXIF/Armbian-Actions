@@ -4,6 +4,7 @@ name: "Armbian Build Stable"
 # ====================================================================
 #  TRIGGERS
 # ====================================================================
+
 on:
   workflow_dispatch:
     inputs:
@@ -394,6 +395,7 @@ jobs:
           cp -rf ./custom/Addboard/* ./build/ || true
           cp -rf ./os/userpatches/* ./build/userpatches/ || true
           cp -v ./prebuilt-kernel-debs/*.deb ./build/output/debs/
+          
 
       - name: "Compile Image [${{ matrix.BOARD }} ${{ matrix.RELEASE }}]"
         shell: bash
@@ -645,16 +647,16 @@ jobs:
             APK_NAME="linux-${BRANCH}-${FAMILY}"
 
             cat <<EOF > "$TMP_ROOT/.PKGINFO"
-          pkgname = ${APK_NAME}
-          pkgver = ${REAL_KVER}-r0
-          pkgdesc = Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}
-          url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
-          builddate = $(date +%s)
-          packager = GitHub Actions (${GITHUB_ACTOR})
-          size = $(du -sb "$TMP_ROOT" | cut -f1)
-          arch = aarch64
-          origin = ${APK_NAME}
-          EOF
+            pkgname = ${APK_NAME}
+            pkgver = ${REAL_KVER}-r0
+            pkgdesc = Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}
+            url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+            builddate = $(date +%s)
+            packager = GitHub Actions (${GITHUB_ACTOR})
+            size = $(du -sb "$TMP_ROOT" | cut -f1)
+            arch = aarch64
+            origin = ${APK_NAME}
+            EOF
 
             TARGET_DIRS=""
             for d in boot lib usr etc; do
