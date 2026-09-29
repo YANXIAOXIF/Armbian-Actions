@@ -6,10 +6,8 @@ name: "Armbian Build Stable"
 #  Defines when this workflow will run.
 # ====================================================================
 on:
-    
   workflow_dispatch:
     inputs:
-
       BOARD:
         type: choice
         description: 'Board'
@@ -94,7 +92,7 @@ permissions:
   pages: write
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -147,7 +145,7 @@ jobs:
         id: get_version
         run: |
           VERSION=$(jq -r '.version' os/nightly.json)
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Armbian version for this run: ${VERSION}"
       
       - name: "Set and Log Release Matrix"
@@ -162,8 +160,6 @@ jobs:
             RELEASE_STRING="${{ inputs.RELEASE_CHOICE }}"
           fi
           
-          echo "Selected releases to build: ${RELEASE_STRING}"
-
           # Determine which board list to use with a single, unified expression
           BOARD_STRING="${{ (github.event_name == 'schedule' || inputs.BOARD == 'all') && env.BOARD || inputs.BOARD }}"
           
@@ -174,9 +170,6 @@ jobs:
           echo "RELEASE=${JSON_RELEASE}" >> $GITHUB_OUTPUT
           echo "RELEASE_STRING=${RELEASE_STRING}" >> $GITHUB_OUTPUT
           echo "BOARD=${JSON_BOARD}" >> $GITHUB_OUTPUT
-          echo "--- Release Matrix Generated ---"
-          echo "Matrix_RELEASE: ${JSON_RELEASE}"
-          echo "Matrix_BOARD: ${JSON_BOARD}"
 
   # ====================================================================
   # JOB 1: Build Kernel Packages
@@ -230,27 +223,20 @@ jobs:
       - name: "Setup Kernel Build Environment"
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-14-aarch64-linux-gnu binutils-aarch64-linux-gnu
-          sudo ln -sf /usr/bin/aarch64-linux-gnu-gcc-14 /usr/bin/aarch64-linux-gnu-gcc
-          sudo ln -sf /usr/bin/aarch64-linux-gnu-g++-14 /usr/bin/aarch64-linux-gnu-g++
-
           # Automatically sync rockchip64 patches
           for verdir in ./build/patch/kernel/archive/rockchip64-7.*; do
             if [ -d "$verdir" ]; then
               target=$(basename "$verdir")
-              if [ ! -d "./build/patch/kernel/archive/$target" ]; then
-                mkdir -p "./build/patch/kernel/archive/$target"
-              fi
-              cp -rf ./custom/Addboard/patch/kernel/archive/rockchip64-6.18/* "./build/patch/kernel/archive/$target/"
+              mkdir -p "./build/patch/kernel/archive/$target"
+              cp -rf ./custom/Addboard/patch/kernel/archive/rockchip64-6.18/* "./build/patch/kernel/archive/$target/" || true
               echo "rockchip64 patches have been synced to $target"
             fi
           done
           
           # Prepare custom build files
           mkdir -p ./build/userpatches
-          cp -rf ./custom/Addboard/* ./build
-          cp -rf ./os/userpatches/* ./build/userpatches
+          cp -rf ./custom/Addboard/* ./build/ || true
+          cp -rf ./os/userpatches/* ./build/userpatches/ || true
 
       - name: "Compile Kernel [${{ matrix.BOARD }} ${{ matrix.BRANCH }}]"
         shell: bash
@@ -294,9 +280,9 @@ jobs:
         RELEASE: ${{ fromJson(needs.Prepare_Build.outputs.RELEASE) }}
         DESKTOP: ${{ fromJson(needs.Prepare_Build.outputs.DESKTOP) }}
         exclude:
-        - BOARD: ${{ github.event_name == 'schedule' && 'ufi001c' || 'skip_exclude' }}
+        - BOARD: ufi001c
           DESKTOP: server
-        - BOARD: ${{ github.event_name == 'schedule' && 'uz801' || 'skip_exclude' }}
+        - BOARD: uz801
           DESKTOP: server
 
     steps:
@@ -364,8 +350,8 @@ jobs:
 
           # Prepare build environment with userpatches and the pre-built kernel debs.
           mkdir -p ./build/userpatches ./build/output/debs
-          cp -rf ./custom/Addboard/* ./build
-          cp -rf ./os/userpatches/* ./build/userpatches
+          cp -rf ./custom/Addboard/* ./build/ || true
+          cp -rf ./os/userpatches/* ./build/userpatches/ || true
           cp -v ./prebuilt-kernel-debs/*.deb ./build/output/debs/
           
       - name: "Import GPG Key for Signing Images"
@@ -454,9 +440,6 @@ jobs:
           find artifacts/images-*/ -type f 2>/dev/null | while read -r img; do
             cp -u "$img" "release_assets/images/"
           done
-          
-          echo "Final unique kernel files to upload:"
-          ls -lh release_assets/kernels/
 
       - name: "Generate Release Body"
         id: generate_body
@@ -508,15 +491,14 @@ jobs:
           bodyFile: "body.html"
 
   # ====================================================================
-  # JOB 4: Update APT Repository
+  # JOB 4: Update APT and Alpine Repository
   # ====================================================================
   Update_APT_Repo:
-    name: "Update APT Repository"
+    name: "Update APT & Alpine Repository"
     runs-on: ubuntu-latest
     needs: [Prepare_Build, Publish_Release]
     if: success()
     env:
-      # Expose GPG Key ID for the reprepro script to use for signing.
       GPG_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
       RELEASES: ${{ needs.Prepare_Build.outputs.RELEASE_STRING }}
 
@@ -533,8 +515,14 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: "Install APT repository tools"
-        run: sudo apt-get update && sudo apt-get install -y reprepro
+      - name: "Install APT and Alpine repository tools"
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y reprepro wget
+          wget -q https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.6/x86_64/apk.static -O /tmp/apk.static
+          chmod +x /tmp/apk.static
+          sudo mv /tmp/apk.static /usr/local/bin/apk.static
 
       - name: "Setup APT Repository Structure"
         shell: bash
@@ -554,15 +542,14 @@ jobs:
           for codename in $RELEASES; do
             echo "Generating config for $codename with components:${COMPONENTS}"
             cat <<EOF >> repo/conf/distributions
-          Origin: Armbian
-          Label: Armbian
-          Codename: ${codename}
-          Architectures: arm64 all
-          Components: ${COMPONENTS}
-          Description: Custom APT repository for Armbian
-          SignWith: ${{ env.GPG_KEY_ID }}
-
-          EOF
+            Origin: Armbian
+            Label: Armbian
+            Codename: ${codename}
+            Architectures: arm64
+            Components: ${COMPONENTS}
+            Description: Custom APT repository for Armbian
+            SignWith: ${{ env.GPG_KEY_ID }}
+            EOF
           done
           
           echo "--- APT distributions config ---"
@@ -575,19 +562,62 @@ jobs:
           for deb_dir in artifacts/debs/kernel-debs-*/; do
             [ -d "$deb_dir" ] || continue
             component=$(basename "$deb_dir" | sed 's/kernel-debs-//')
-            echo "--- Processing packages from ${deb_dir} for component: ${component} ---"
             
             ls "${deb_dir}"/*.deb >/dev/null 2>&1 || continue
 
             for codename in $RELEASES; do
-              echo "Adding packages to distribution '${codename}' component '${component}'"
-              reprepro -b repo/ -V --ignore=wrongdistribution --ignore=wrongarchitecture -C ${component} includedeb ${codename} "${deb_dir}"/*.deb
-              if [ $? -ne 0 ]; then
-                  echo "::error::reprepro failed for ${codename}/${component} with packages from ${deb_dir}"
-                  exit 1
-              fi
+              reprepro -b repo/ -V --ignore=wrongdistribution --ignore=wrongarchitecture -C "${component}" includedeb "${codename}" "${deb_dir}"/*.deb
             done
           done
+
+      - name: "Add all Alpine"
+        shell: bash
+        run: |
+          mkdir -p ./repo/alpine/aarch64
+
+          for deb_dir in artifacts/debs/kernel-debs-*; do
+            [ -d "$deb_dir" ] || continue
+
+            BRANCH=$(basename "$deb_dir" | awk -F'-' '{print $NF}')
+            PKG_NAME="linux-${BRANCH}-qcom64"
+            
+            TMP_ROOT="/tmp/apk_${PKG_NAME}"
+            rm -rf "$TMP_ROOT" && mkdir -p "$TMP_ROOT"
+
+            for deb in "$deb_dir"/*.deb; do
+              [ -f "$deb" ] || continue
+              tmp_pkg=$(mktemp -d)
+              ar -x "$deb" --output "$tmp_pkg"
+              tar -xf "$tmp_pkg"/data.tar.* -C "$TMP_ROOT" || true
+              rm -rf "$tmp_pkg"
+            done
+            
+            REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
+            [ -z "$REAL_KVER" ] && continue
+
+            cat <<EOF > "$TMP_ROOT/.PKGINFO"
+            pkgname = ${PKG_NAME}
+            pkgver = ${REAL_KVER}-r0
+            pkgdesc = Universal Linux Kernel (${BRANCH}) and all DTBs for Qualcomm MSM8916 (qcom64)
+            url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+            builddate = $(date +%s)
+            packager = GitHub Actions (${GITHUB_ACTOR})
+            size = $(du -sb "$TMP_ROOT" | cut -f1)
+            arch = aarch64
+            origin = ${PKG_NAME}
+            EOF
+
+            TARGET_DIRS=""
+            for d in boot lib usr etc; do
+              [ -d "$TMP_ROOT/$d" ] && TARGET_DIRS="$TARGET_DIRS $d"
+            done
+
+            tar -czf "./repo/alpine/aarch64/${PKG_NAME}-${REAL_KVER}.apk" -C "$TMP_ROOT" .PKGINFO $TARGET_DIRS
+            rm -rf "$TMP_ROOT"
+          done
+
+          cd ./alpine_repo/aarch64
+          apk.static index -o APKINDEX.tar.gz *.apk
 
       - name: "Deploy repository to GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
