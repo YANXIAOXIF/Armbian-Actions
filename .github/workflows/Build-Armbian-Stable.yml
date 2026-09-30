@@ -583,76 +583,71 @@ jobs:
                 includedeb "${codename}" "$deb"
             done
           done
-
-      - name: "Setup and Populate Alpine Repository"
+          
+      - name: "Setup and Populate APT Repository"
         shell: bash
         run: |
-          for deb in artifacts/debs/kernel-debs-*/linux-image-*.deb; do
+          mkdir -p repo/conf
+          > repo/conf/distributions
+
+          # 1. 仅从 linux-image 提取真正的芯片平台 (排除 edge / vendor 等分支名)
+          FAMILIES=$(for f in artifacts/debs/kernel-debs-*/linux-image-*.deb; do
+            [ -f "$f" ] || continue
+            # linux-image-edge-qcom64 -> 提取出 qcom64
+            dpkg-deb -f "$f" Package | sed -E 's/^linux-image-[^-]+-//'
+          done | sort -u | tr '\n' ' ')
+
+          COMPONENTS="main ${FAMILIES}"
+          echo "Discovered Platform Components: ${COMPONENTS}"
+
+          # 2. 判断是否有 GPG_KEY_ID，有才写入 SignWith，没有则留空不写
+          SIGN_LINE=""
+          if [ -n "${GPG_KEY_ID}" ]; then
+            SIGN_LINE="SignWith: ${GPG_KEY_ID}"
+            echo "Signing APT repository with key: ${GPG_KEY_ID}"
+          else
+            echo "No GPG_SIGNING_KEY_ID provided, building unsigned repository."
+          fi
+
+          for codename in $RELEASES; do
+            cat <<EOF >> repo/conf/distributions
+          Origin: Armbian
+          Label: Armbian
+          Codename: ${codename}
+          Architectures: arm64
+          Components: ${COMPONENTS}
+          Description: Custom APT repository for Armbian
+          ${SIGN_LINE}
+
+          EOF
+          done
+
+          echo "--- APT distributions config ---"
+          cat repo/conf/distributions
+
+          # 3. 将 DEB 包自动归类放入对应组件
+          for deb in artifacts/debs/kernel-debs-*/*.deb; do
             [ -f "$deb" ] || continue
+            PKG_NAME=$(dpkg-deb -f "$deb" Package)
 
-            PKG_NAME=$(dpkg-deb -f "$deb" Package) # 例: linux-image-edge-qcom64
-            BRANCH=$(echo "$PKG_NAME" | awk -F'-' '{print $(NF-1)}') # edge / vendor
-            FAMILY=$(echo "$PKG_NAME" | awk -F'-' '{print $NF}')     # qcom64 / rockchip64
-
-            TARGET_DIR="./repo/alpine/${FAMILY}/aarch64"
-            mkdir -p "$TARGET_DIR"
-
-            TMP_ROOT="/tmp/apk_${FAMILY}_${BRANCH}"
-            rm -rf "$TMP_ROOT" && mkdir -p "$TMP_ROOT"
-
-            tmp_pkg=$(mktemp -d)
-            ar -x "$deb" --output "$tmp_pkg"
-            tar -xf "$tmp_pkg"/data.tar.* -C "$TMP_ROOT" || true
-            rm -rf "$tmp_pkg"
-
-            DTB_DIR=$(dirname "$deb")
-            for dtb_deb in "$DTB_DIR"/linux-dtb-${BRANCH}-${FAMILY}*.deb; do
-              if [ -f "$dtb_deb" ]; then
-                tmp_dtb=$(mktemp -d)
-                ar -x "$dtb_deb" --output "$tmp_dtb"
-                tar -xf "$tmp_dtb"/data.tar.* -C "$TMP_ROOT" || true
-                rm -rf "$tmp_dtb"
+            # 智能匹配芯片家族归类，匹配不到的（如 u-boot）默认放入 main
+            TARGET_COMP="main"
+            for fam in ${FAMILIES}; do
+              if [[ "$PKG_NAME" == *"$fam"* ]]; then
+                TARGET_COMP="$fam"
+                break
               fi
             done
 
-            REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
-            [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
-
-            APK_NAME="linux-${BRANCH}-${FAMILY}"
-
-            cat <<EOF > "$TMP_ROOT/.PKGINFO"
-            pkgname = ${APK_NAME}
-            pkgver = ${REAL_KVER}-r0
-            pkgdesc = Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}
-            url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
-            builddate = $(date +%s)
-            packager = GitHub Actions (${GITHUB_ACTOR})
-            size = $(du -sb "$TMP_ROOT" | cut -f1)
-            arch = aarch64
-            origin = ${APK_NAME}
-            EOF
-
-            TARGET_DIRS=""
-            for d in boot lib usr etc; do
-              [ -d "$TMP_ROOT/$d" ] && TARGET_DIRS="$TARGET_DIRS $d"
+            for codename in $RELEASES; do
+              reprepro -b repo/ -V \
+                --ignore=wrongdistribution \
+                --ignore=wrongarchitecture \
+                -C "${TARGET_COMP}" \
+                includedeb "${codename}" "$deb"
             done
-
-            tar -czf "${TARGET_DIR}/${APK_NAME}-${REAL_KVER}.apk" -C "$TMP_ROOT" .PKGINFO $TARGET_DIRS
-            rm -rf "$TMP_ROOT"
           done
-
-          for fam_dir in ./repo/alpine/*; do
-            ARCH_DIR="$fam_dir/aarch64"
-            if [ -d "$ARCH_DIR" ]; then
-              cd "$ARCH_DIR"
-              if ls *.apk >/dev/null 2>&1; then
-                apk.static index -o APKINDEX.tar.gz *.apk
-                echo "Generated APKINDEX for $(basename "$fam_dir")"
-              fi
-              cd - >/dev/null
-            fi
-          done
-
+          
       - name: "Deploy repository to GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
         with:
