@@ -659,7 +659,9 @@ jobs:
             REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
             [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
 
-            CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//")
+            CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//" | sed 's/-rc/_rc/')
+
+            PKG_VER="${CLEAN_KVER}-r0"
 
             APK_NAME="linux-${BRANCH}-${FAMILY}"
 
