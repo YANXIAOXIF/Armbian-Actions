@@ -614,7 +614,6 @@ jobs:
       - name: "Setup and Populate Alpine Repository"
         shell: bash
         run: |
-          # 1. 载入 Alpine RSA 私钥并导出公钥
           HAS_ALPINE_KEY="false"
           if [ -n "${{ secrets.ALPINE_PRIVATE_KEY }}" ]; then
             echo "${{ secrets.ALPINE_PRIVATE_KEY }}" > /tmp/alpine.rsa
@@ -660,11 +659,13 @@ jobs:
             REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
             [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
 
+            CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//")
+
             APK_NAME="linux-${BRANCH}-${FAMILY}"
 
             {
               echo "pkgname = ${APK_NAME}"
-              echo "pkgver = ${REAL_KVER}-r0"
+              echo "pkgver = ${CLEAN_KVER}-r0"
               echo "pkgdesc = Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}"
               echo "url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
               echo "builddate = $(date +%s)"
@@ -679,11 +680,10 @@ jobs:
               [ -d "$TMP_ROOT/$d" ] && TARGET_DIRS="$TARGET_DIRS $d"
             done
 
-            tar -czf "${TARGET_DIR}/${APK_NAME}-${REAL_KVER}.apk" -C "$TMP_ROOT" .PKGINFO $TARGET_DIRS
+            tar -czf "${TARGET_DIR}/${APK_NAME}-${CLEAN_KVER}.apk" -C "$TMP_ROOT" .PKGINFO $TARGET_DIRS
             rm -rf "$TMP_ROOT"
           done
 
-          # 3. 生成索引并注入标准签名
           KEY_NAME="alpine-actions.rsa.pub"
 
           for fam_dir in ./repo/alpine/*; do
@@ -691,20 +691,16 @@ jobs:
             if [ -d "$ARCH_DIR" ]; then
               cd "$ARCH_DIR"
               if ls *.apk >/dev/null 2>&1; then
-                # 【修复点 1】：添加 --allow-untrusted 允许收录自建单包
                 apk.static index --allow-untrusted -o APKINDEX.unsigned.tar.gz *.apk
 
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
                   echo "正在使用 OpenSSL 私钥对 $(basename "$fam_dir") 的 APKINDEX 注入签名..."
                   
-                  # 【修复点 2】：解包索引、用私钥签名并压入 Alpine 规范签名块 (.SIGN.RSA...)
                   TMP_SIGN_DIR=$(mktemp -d)
                   tar -xzf APKINDEX.unsigned.tar.gz -C "$TMP_SIGN_DIR"
                   
-                  # 生成 sha1 散列数字签名
                   openssl dgst -sha1 -sign /tmp/alpine.rsa -out "$TMP_SIGN_DIR/.SIGN.RSA.${KEY_NAME}" "$TMP_SIGN_DIR/APKINDEX"
                   
-                  # 按照 Alpine 标准格式打回 APKINDEX.tar.gz (签名文件在前，数据在后)
                   tar -czf APKINDEX.tar.gz -C "$TMP_SIGN_DIR" ".SIGN.RSA.${KEY_NAME}" APKINDEX
                   
                   rm -rf "$TMP_SIGN_DIR" APKINDEX.unsigned.tar.gz
