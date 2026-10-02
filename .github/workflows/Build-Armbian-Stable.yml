@@ -6,8 +6,7 @@ name: "Armbian Build Stable"
 # ====================================================================
 on:
   schedule:
-    # 每周日凌晨 0:00 (UTC) 自动运行
-    - cron: '0 0 * * 0'
+    - cron: '0 0 5 * *'
 
   workflow_dispatch:
     inputs:
@@ -130,13 +129,26 @@ jobs:
         with:
           repository: armbian/os
           path: os
+      - name: "Checkout Build System to get Version"
+        uses: actions/checkout@v7
+        with:
+          repository: armbian/build
+          path: build
+
+      - name: "Get Armbian VERSIONOS"
+        id: get_versionos
+        run: |
+          VERSIONOS=$(jq -r '.version' os/nightly.json)
+          echo "VERSION=${VERSIONOS}" >> "$GITHUB_OUTPUT"
+          echo "Armbian target version: ${VERSIONOS}"
 
       - name: "Get Armbian Version"
         id: get_version
         run: |
-          VERSION=$(jq -r '.version' os/nightly.json)
-          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Armbian target version: ${VERSION}"
+          VERSION=$(cat build/VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Armbian version for this run: ${VERSION}"
+      
 
       - name: "Normalize & Export Matrix Parameters"
         id: normalize_params
