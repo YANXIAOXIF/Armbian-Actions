@@ -609,12 +609,12 @@ jobs:
           done
 
 # ---------------------------------------------------------------
-      # 2. 构建 Alpine 源 (修复 EOF 缩进语法错误)
+      # 2. 构建并正确签名 Alpine 源
       # ---------------------------------------------------------------
       - name: "Setup and Populate Alpine Repository"
         shell: bash
         run: |
-          # 1. 载入 Alpine 私钥并导出公钥
+          # 1. 载入 Alpine RSA 私钥并导出公钥
           HAS_ALPINE_KEY="false"
           if [ -n "${{ secrets.ALPINE_PRIVATE_KEY }}" ]; then
             echo "${{ secrets.ALPINE_PRIVATE_KEY }}" > /tmp/alpine.rsa
@@ -662,7 +662,6 @@ jobs:
 
             APK_NAME="linux-${BRANCH}-${FAMILY}"
 
-            # 【修复点】：改用结构化代码块写入 .PKGINFO，杜绝 EOF 缩进问题
             {
               echo "pkgname = ${APK_NAME}"
               echo "pkgver = ${REAL_KVER}-r0"
@@ -684,24 +683,41 @@ jobs:
             rm -rf "$TMP_ROOT"
           done
 
-          # 3. 签名生成 APKINDEX 索引
+          # 3. 生成索引并注入标准签名
+          KEY_NAME="alpine-actions.rsa.pub"
+
           for fam_dir in ./repo/alpine/*; do
             ARCH_DIR="$fam_dir/aarch64"
             if [ -d "$ARCH_DIR" ]; then
               cd "$ARCH_DIR"
               if ls *.apk >/dev/null 2>&1; then
+                # 【修复点 1】：添加 --allow-untrusted 允许收录自建单包
+                apk.static index --allow-untrusted -o APKINDEX.unsigned.tar.gz *.apk
+
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "使用独立 Secret 密钥签名 $(basename "$fam_dir") 的 APKINDEX..."
-                  apk.static index -k /tmp/alpine.rsa -o APKINDEX.tar.gz *.apk
+                  echo "正在使用 OpenSSL 私钥对 $(basename "$fam_dir") 的 APKINDEX 注入签名..."
+                  
+                  # 【修复点 2】：解包索引、用私钥签名并压入 Alpine 规范签名块 (.SIGN.RSA...)
+                  TMP_SIGN_DIR=$(mktemp -d)
+                  tar -xzf APKINDEX.unsigned.tar.gz -C "$TMP_SIGN_DIR"
+                  
+                  # 生成 sha1 散列数字签名
+                  openssl dgst -sha1 -sign /tmp/alpine.rsa -out "$TMP_SIGN_DIR/.SIGN.RSA.${KEY_NAME}" "$TMP_SIGN_DIR/APKINDEX"
+                  
+                  # 按照 Alpine 标准格式打回 APKINDEX.tar.gz (签名文件在前，数据在后)
+                  tar -czf APKINDEX.tar.gz -C "$TMP_SIGN_DIR" ".SIGN.RSA.${KEY_NAME}" APKINDEX
+                  
+                  rm -rf "$TMP_SIGN_DIR" APKINDEX.unsigned.tar.gz
+                  echo "签名注入完成！"
                 else
-                  apk.static index -o APKINDEX.tar.gz *.apk
+                  mv APKINDEX.unsigned.tar.gz APKINDEX.tar.gz
                 fi
               fi
               cd - >/dev/null
             fi
           done
 
-          # 清理临时私钥实体
+          # 清理私钥
           rm -f /tmp/alpine.rsa
       # ---------------------------------------------------------------
       # 3. 部署到 GitHub Pages
