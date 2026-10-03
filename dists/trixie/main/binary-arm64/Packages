@@ -1,0 +1,42 @@
+Package: armbian-bsp-cli-ufi001c-edge
+Version: 26.11.0-trunk
+Architecture: arm64
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Recommends: bsdutils, parted, util-linux, toilet
+Priority: optional
+Section: kernel
+Filename: pool/main/a/armbian-bsp-cli-ufi001c-edge/armbian-bsp-cli-ufi001c-edge_26.11.0-trunk_arm64.deb
+Size: 111624
+SHA256: 3469f2c4bf9aa18a0278c7f9ae355866921058deddf6105db320bbc56bd8a7ca
+SHA1: 413b7edf745f2eb6268bdd968386074c8b818d96
+MD5sum: 73c7fcd0ff500bd75894cc9c97ffd625
+Description: Armbian CLI BSP for board 'ufi001c' branch 'edge' 
+Installed-Size: 325
+Armbian-Original-Hash: 1-PCa2aa-Vc9c9-H2670-Bca11-R55a6
+Depends: bash, linux-base, u-boot-tools, initramfs-tools, lsb-release, fping, device-tree-compiler, base-files (>= 26.11.0-trunk)
+Replaces: zram-config, linux-sysctl-defaults, armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Breaks: armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Conflicts: linux-sysctl-defaults
+Provides: armbian-bsp-cli, linux-sysctl-defaults
+
+Package: armbian-bsp-cli-ufi001c-vendor
+Version: 26.11.0-trunk
+Architecture: arm64
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Recommends: bsdutils, parted, util-linux, toilet
+Priority: optional
+Section: kernel
+Filename: pool/main/a/armbian-bsp-cli-ufi001c-vendor/armbian-bsp-cli-ufi001c-vendor_26.11.0-trunk_arm64.deb
+Size: 111616
+SHA256: 67f9afffc7c59897d8e646d4aa9c8e95d093ccffb9117ed56d6867fc82025865
+SHA1: af962f8b00c6af47e7a6ad6ece2eaf39539863ff
+MD5sum: edfd6188b5bbb0a3c7ee395d25e26779
+Description: Armbian CLI BSP for board 'ufi001c' branch 'vendor' 
+Installed-Size: 325
+Armbian-Original-Hash: 1-PCa2aa-Vc9c9-H2670-Bca11-R55a6
+Depends: bash, linux-base, u-boot-tools, initramfs-tools, lsb-release, fping, device-tree-compiler, base-files (>= 26.11.0-trunk)
+Replaces: zram-config, linux-sysctl-defaults, armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Breaks: armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Conflicts: linux-sysctl-defaults
+Provides: armbian-bsp-cli, linux-sysctl-defaults
+

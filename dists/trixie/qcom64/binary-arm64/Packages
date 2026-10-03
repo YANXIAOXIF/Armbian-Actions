@@ -1,0 +1,162 @@
+Package: linux-dtb-edge-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Architecture: arm64
+Provides: linux-dtb, linux-dtb-armbian, armbian-edge
+Priority: optional
+Section: kernel
+Filename: pool/qcom64/l/linux-dtb-edge-qcom64/linux-dtb-edge-qcom64_26.11.0-trunk_arm64.deb
+Size: 1258732
+SHA256: 5d577074d92e87f82fc4b5dc4c49149299aa2473c595e914483a2bad5a57f835
+SHA1: 55529590ce39cfa41dd9193c82e5401720c63fcc
+MD5sum: 770d5b09659da257a2c4c784c1992bcb
+Description: Armbian Linux edge DTBs in /boot/dtb-7.3.0-rc5-edge-qcom64
+ This package contains device tree blobs from the Linux kernel, version 7.3.0-rc5-edge-qcom64
+ version "7.3.0-rc5" git revision "72d3fcf802c45d00b300f25b848a93c3a2bd7c7e" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "b4c80d9851717d4b" .config hash "f6a1079a7ec78839" .config hook hash "0b140eaf028906a2" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 43902
+Armbian-Original-Hash: 7.3-rc5-S72d3-D0000-Pb4c8-Cf6a1-H0b14-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-dtb-vendor-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Architecture: arm64
+Provides: linux-dtb, linux-dtb-armbian, armbian-vendor
+Priority: optional
+Section: kernel
+Filename: pool/qcom64/l/linux-dtb-vendor-qcom64/linux-dtb-vendor-qcom64_26.11.0-trunk_arm64.deb
+Size: 803304
+SHA256: 35e9de57aa927f7df347355652054b3afafad7a249c640b903a450d07b00bf50
+SHA1: aec03ba581c2d32b9dbde757e772d1f39c0a359a
+MD5sum: 0f840f71c011a4a1e096705cdcc249b3
+Description: Armbian Linux vendor DTBs in /boot/dtb-6.15.0-vendor-qcom64
+ This package contains device tree blobs from the Linux kernel, version 6.15.0-vendor-qcom64
+ version "6.15.0" git revision "f6f20462389907103fd73c721ffefe5bd1618e4d" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "7d7184c2efd2cd8f" .config hash "911da25d379171a2" .config hook hash "edd3c50c3248a09f" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 23534
+Armbian-Original-Hash: 6.15.0-Sf6f2-D0000-P7d71-C911d-Hedd3-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-headers-edge-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Architecture: arm64
+Provides: linux-headers (= 7.3.0-rc5), linux-headers-armbian, armbian-edge
+Depends: make, gcc, libc6-dev, bison, flex, libssl-dev, libelf-dev, pahole | dwarves, python3-minimal
+Priority: optional
+Section: devel
+Filename: pool/qcom64/l/linux-headers-edge-qcom64/linux-headers-edge-qcom64_26.11.0-trunk_arm64.deb
+Size: 16135400
+SHA256: df51b71f384e686027673dec74ab03445860f3cf686d03950052b9050c811133
+SHA1: dab31923ee19267b668d24f7fce3161317df9e9f
+MD5sum: fe6fb5c862fca1900c8861f2aba187a9
+Description: Armbian Linux edge headers 7.3.0-rc5-edge-qcom64
+ This package provides kernel header files for 7.3.0-rc5-edge-qcom64
+ .
+ This is useful for DKMS and building of external modules.
+ version "7.3.0-rc5" git revision "72d3fcf802c45d00b300f25b848a93c3a2bd7c7e" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "b4c80d9851717d4b" .config hash "f6a1079a7ec78839" .config hook hash "0b140eaf028906a2" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 87343
+Armbian-Original-Hash: 7.3-rc5-S72d3-D0000-Pb4c8-Cf6a1-H0b14-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-headers-vendor-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Architecture: arm64
+Provides: linux-headers (= 6.15.0), linux-headers-armbian, armbian-vendor
+Depends: make, gcc, libc6-dev, bison, flex, libssl-dev, libelf-dev, pahole | dwarves, python3-minimal
+Priority: optional
+Section: devel
+Filename: pool/qcom64/l/linux-headers-vendor-qcom64/linux-headers-vendor-qcom64_26.11.0-trunk_arm64.deb
+Size: 14905640
+SHA256: f0111d6dbc72a79e4e020966ca5a36895ae4e85d25dd4a99e071746734333919
+SHA1: c9b49c291de8046e849a86f086d7c79da429dbf7
+MD5sum: f2641bb3c19a481d788a3a9eeaaa2b33
+Description: Armbian Linux vendor headers 6.15.0-vendor-qcom64
+ This package provides kernel header files for 6.15.0-vendor-qcom64
+ .
+ This is useful for DKMS and building of external modules.
+ version "6.15.0" git revision "f6f20462389907103fd73c721ffefe5bd1618e4d" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "7d7184c2efd2cd8f" .config hash "911da25d379171a2" .config hook hash "edd3c50c3248a09f" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 79378
+Armbian-Original-Hash: 6.15.0-Sf6f2-D0000-P7d71-C911d-Hedd3-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-image-edge-qcom64
+Version: 26.11.0-trunk
+Source: linux-7.3.0-rc5
+Armbian-Kernel-Version: 7.3.0-rc5
+Armbian-Kernel-Version-Family: 7.3.0-rc5-edge-qcom64
+Architecture: arm64
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Depends: initramfs-tools | linux-initramfs-tool
+Provides: linux-image, linux-image-armbian, armbian-edge, wireguard-modules
+Priority: optional
+Section: kernel
+Filename: pool/qcom64/l/linux-7.3.0-rc5/linux-image-edge-qcom64_26.11.0-trunk_arm64.deb
+Size: 20366384
+SHA256: 88c317d72062ca284229d22e6c1f33de52951088473909f2c950229a88388d65
+SHA1: 888b93e4b7600155566afd90e92e1db680ed4dd1
+MD5sum: f08ac5440befbf7ae88a6af0b7c36766
+Description: Armbian Linux edge kernel image 7.3.0-rc5-edge-qcom64
+ This package contains the Linux kernel, modules and corresponding other files.
+ version "7.3.0-rc5" git revision "72d3fcf802c45d00b300f25b848a93c3a2bd7c7e" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "b4c80d9851717d4b" .config hash "f6a1079a7ec78839" .config hook hash "0b140eaf028906a2" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 145987
+Armbian-Original-Hash: 7.3-rc5-S72d3-D0000-Pb4c8-Cf6a1-H0b14-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-image-vendor-qcom64
+Version: 26.11.0-trunk
+Source: linux-6.15.0
+Armbian-Kernel-Version: 6.15.0
+Armbian-Kernel-Version-Family: 6.15.0-vendor-qcom64
+Architecture: arm64
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Depends: initramfs-tools | linux-initramfs-tool
+Provides: linux-image, linux-image-armbian, armbian-vendor, wireguard-modules
+Priority: optional
+Section: kernel
+Filename: pool/qcom64/l/linux-6.15.0/linux-image-vendor-qcom64_26.11.0-trunk_arm64.deb
+Size: 20873268
+SHA256: da274dbe3ad9278f705ba623a495102c931808a66af48a52a021b5e6c7ba164f
+SHA1: b6b357eed31424dc7e9fc3eb33038c076980351f
+MD5sum: 5ea657ce15df3d830ebd685011f08c2b
+Description: Armbian Linux vendor kernel image 6.15.0-vendor-qcom64
+ This package contains the Linux kernel, modules and corresponding other files.
+ version "6.15.0" git revision "f6f20462389907103fd73c721ffefe5bd1618e4d" codename "Baby Opossum Posse" drivers hash "0000000000000000" patches hash "7d7184c2efd2cd8f" .config hash "911da25d379171a2" .config hook hash "edd3c50c3248a09f" variables hash "c22207b66dc5dd57157df2cd7b9c20559b2ed8ac44b9c3c3b9704002c06b8921" framework bash hash "5f2c47e0868b0b2d"
+Installed-Size: 124878
+Armbian-Original-Hash: 6.15.0-Sf6f2-D0000-P7d71-C911d-Hedd3-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-libc-dev-edge-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Provides: linux-libc-dev
+Conflicts: linux-libc-dev
+Architecture: arm64
+Priority: optional
+Section: devel
+Filename: pool/qcom64/l/linux-libc-dev-edge-qcom64/linux-libc-dev-edge-qcom64_26.11.0-trunk_arm64.deb
+Size: 1493532
+SHA256: 33bdc106aba72a935eec21083c4f80df24afc8dc6d7e414421fada597065e8b6
+SHA1: ac1f6fa221257550a3e9727398149ebd92d39225
+MD5sum: c83ff0e93bad704811e10d2f9843610c
+Description: Armbian Linux support headers for userspace development
+ This package provides userspaces headers from the Linux kernel.  These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+Multi-Arch: same
+Installed-Size: 7113
+Armbian-Original-Hash: 7.3-rc5-S72d3-D0000-Pb4c8-Cf6a1-H0b14-HK01ba-Vc222-B5f2c-R448a
+
+Package: linux-libc-dev-vendor-qcom64
+Version: 26.11.0-trunk
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Provides: linux-libc-dev
+Conflicts: linux-libc-dev
+Architecture: arm64
+Priority: optional
+Section: devel
+Filename: pool/qcom64/l/linux-libc-dev-vendor-qcom64/linux-libc-dev-vendor-qcom64_26.11.0-trunk_arm64.deb
+Size: 1398908
+SHA256: 837fcb13db092ea5ad982f48822bebc84e1add4a5d5f0dd2960f49ea48e50d85
+SHA1: 7f743a10eb6dcd72846817f45b91345f79106fb0
+MD5sum: 380ff4bd1a76a419a12dcd3167f18a7f
+Description: Armbian Linux support headers for userspace development
+ This package provides userspaces headers from the Linux kernel.  These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+Multi-Arch: same
+Installed-Size: 6624
+Armbian-Original-Hash: 6.15.0-Sf6f2-D0000-P7d71-C911d-Hedd3-HK01ba-Vc222-B5f2c-R448a
+

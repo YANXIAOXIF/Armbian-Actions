@@ -1,0 +1,28 @@
+Origin: Armbian
+Label: Armbian
+Codename: trixie
+Date: Sat, 03 Oct 2026 08:43:53 UTC
+Architectures: arm64
+Components: main qcom64
+Description: Custom APT repository for Armbian
+MD5Sum:
+ 3109fb99c97e33b288be26113e52a0cb 1984 main/binary-arm64/Packages
+ b2e14b42e103e427263a59955bc5a90b 720 main/binary-arm64/Packages.gz
+ 9a463abafe34882a4ba695a50909e5dd 114 main/binary-arm64/Release
+ 6561f0fa88fdca4239135f38ae6ef4ba 9044 qcom64/binary-arm64/Packages
+ 79c3e55d4c570a291a924f354109d1fc 2149 qcom64/binary-arm64/Packages.gz
+ ff725c9c9f809016f91961449c009958 116 qcom64/binary-arm64/Release
+SHA1:
+ b49d7dca86c74ad811eb4eb0e293857530b5bb0c 1984 main/binary-arm64/Packages
+ d8eb704bca4b6b1f517dd7f1dcd46462b1e4ee10 720 main/binary-arm64/Packages.gz
+ 8b98a0719036817f16a37f5bbe4598e1374fc1de 114 main/binary-arm64/Release
+ a28295615c4138815d9597e70ca5849cbec87225 9044 qcom64/binary-arm64/Packages
+ bef26bd4ae9fee0c21d810c60fd34edf0da59ad9 2149 qcom64/binary-arm64/Packages.gz
+ 613b4e6e589ddac9e27a4aeedde49eb9776ea950 116 qcom64/binary-arm64/Release
+SHA256:
+ 6ce70c768d961699a3527888a751e8b8ec351712fba9d5bbb5e2ff33fafaf8e5 1984 main/binary-arm64/Packages
+ 7edddffcf7648f0cd8bbc0c85264b0faef0adbc8afcdcb20b56f0be3d20fd665 720 main/binary-arm64/Packages.gz
+ 90f66ac7e53f55062e16abc59cd67cdb81b1cfbfbb3567b24e7ecf75720cf9ec 114 main/binary-arm64/Release
+ 6eb44a357c149567c8344b4f9159519bc4f851725f50f78354a3a30092baccc6 9044 qcom64/binary-arm64/Packages
+ 5ffb7f1c8420cf164e261741f648f4ac008e4b0fabd014ea040f1d8327d27cf1 2149 qcom64/binary-arm64/Packages.gz
+ 58e29f27c057451bd46da2fc1f12fd7d28912bc5d40cdaf4356ead21901bdee5 116 qcom64/binary-arm64/Release

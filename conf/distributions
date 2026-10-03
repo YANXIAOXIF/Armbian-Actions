@@ -1,0 +1,8 @@
+Origin: Armbian
+Label: Armbian
+Codename: trixie
+Architectures: arm64
+Components: main qcom64 
+Description: Custom APT repository for Armbian
+SignWith: 287DC6A7A6303671
+
