@@ -713,25 +713,21 @@ jobs:
             if [ -d "$ARCH_DIR" ]; then
               cd "$ARCH_DIR"
               if ls *.apk >/dev/null 2>&1; then
-                # 清理旧的索引避免冲突
+                # 清理旧索引避免冲突
                 rm -f APKINDEX.*
 
-                apk.static index --allow-untrusted -o APKINDEX.unsigned.tar.gz *.apk
-
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "正在使用 OpenSSL 私钥对 $(basename "$fam_dir") 的 APKINDEX 注入签名..."
-                  
-                  TMP_SIGN_DIR=$(mktemp -d)
-                  tar -xzf APKINDEX.unsigned.tar.gz -C "$TMP_SIGN_DIR"
-                  
-                  openssl dgst -sha1 -sign /tmp/alpine.rsa -out "$TMP_SIGN_DIR/.SIGN.RSA.${KEY_NAME}" "$TMP_SIGN_DIR/APKINDEX"
-                  
-                  tar -czf APKINDEX.tar.gz -C "$TMP_SIGN_DIR" ".SIGN.RSA.${KEY_NAME}" APKINDEX
-                  
-                  rm -rf "$TMP_SIGN_DIR" APKINDEX.unsigned.tar.gz
-                  echo "签名注入完成！"
+                  echo "正在为 $(basename "$fam_dir") 生成带官方数字签名的 APKINDEX..."
+                  # 原生使用 --sign-key 直接生成符合 Alpine 规范的已签名 APKINDEX.tar.gz
+                  apk.static index \
+                    --allow-untrusted \
+                    --sign-key /tmp/alpine.rsa \
+                    -o APKINDEX.tar.gz \
+                    *.apk
+                  echo "签名完成！"
                 else
-                  mv APKINDEX.unsigned.tar.gz APKINDEX.tar.gz
+                  echo "生成免签测试索引..."
+                  apk.static index --allow-untrusted -o APKINDEX.tar.gz *.apk
                 fi
               fi
               cd - >/dev/null
