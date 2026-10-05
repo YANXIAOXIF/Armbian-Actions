@@ -7,7 +7,7 @@ name: "Armbian Build Stable"
 on:
   schedule:
     # 每周日凌晨 0:00 (UTC) 自动运行
-    - cron: '0 0 5 * *'
+    - cron: '0 0 1,15 * *'
 
   workflow_dispatch:
     inputs:
