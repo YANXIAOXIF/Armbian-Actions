@@ -657,18 +657,23 @@ jobs:
               cd "$ARCH_DIR"
               apk_files=(*.apk)
               if [ ${#apk_files[@]} -gt 0 ]; then
-                rm -f APKINDEX.*
+                rm -f Packages.adb packages.adb APKINDEX.*
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "Generating signed APKINDEX for $(basename "$fam_dir")..."
-                  apk.static index \
+                  echo "Generating signed APKINDEX (v3 adb) for $(basename "$fam_dir")..."
+                  apk.static mkndx \
                     --allow-untrusted \
                     --sign-key /tmp/alpine.rsa \
-                    -o APKINDEX.tar.gz \
+                    --output Packages.adb \
                     *.apk
                 else
-                  echo "Generating unsigned test APKINDEX for $(basename "$fam_dir")..."
-                  apk.static index --allow-untrusted -o APKINDEX.tar.gz *.apk
+                  echo "Generating unsigned test APKINDEX (v3 adb) for $(basename "$fam_dir")..."
+                  apk.static mkndx \
+                    --allow-untrusted \
+                    --output Packages.adb \
+                    *.apk
                 fi
+                # 创建大小写软链接以兼容不同客户端
+                ln -sf Packages.adb packages.adb
               fi
               cd - >/dev/null
             fi
