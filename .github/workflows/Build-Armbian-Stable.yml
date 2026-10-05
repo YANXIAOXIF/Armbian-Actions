@@ -198,7 +198,8 @@ jobs:
   # JOB 1: Build Kernel Packages
   # ====================================================================
   Build_Kernel:
-    name: "Build Kernel [${{ matrix.BOARD }} ${{ matrix.BRANCH }}]"
+    Build_Kernel:
+    name: "Build Kernel [${{ matrix.BOARD == 'lemonpi' && 'Rockchip' || (matrix.BOARD == 'ufi001c' && 'Qualcomm' || matrix.BOARD) }} ${{ matrix.BRANCH }}]"
     needs: Prepare_Build
     runs-on: ubuntu-latest
     timeout-minutes: 300
