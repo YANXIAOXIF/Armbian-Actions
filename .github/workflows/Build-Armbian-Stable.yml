@@ -21,6 +21,16 @@ on:
           - uz801
           - all
         default: 'all'
+        
+      BRANCH:
+        description: "Branch to use"
+        required: true
+        type: choice
+        options:
+          - vendor
+          - edge
+          - all
+        default: 'edge'
 
       RELEASE_CHOICE:
         type: choice
@@ -114,6 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       BOARD: ${{ steps.normalize_params.outputs.BOARD }}
+      BRANCH: ${{ steps.normalize_params.outputs.BRANCH }}
       KERNEL_BOARDS: ${{ steps.normalize_params.outputs.KERNEL_BOARDS }}
       RELEASE: ${{ steps.normalize_params.outputs.RELEASE }}
       RELEASE_STRING: ${{ steps.normalize_params.outputs.RELEASE_STRING }}
@@ -157,8 +168,20 @@ jobs:
         run: |
           IS_SCHEDULE="${{ github.event_name == 'schedule' }}"
           INPUT_BOARD="${{ inputs.BOARD }}"
+          INPUT_BRANCH="${{ inputs.BRANCH }}"
           INPUT_RELEASE="${{ inputs.RELEASE_CHOICE }}"
           INPUT_DESKTOP="${{ inputs.DESKTOP }}"
+
+          if [ "$IS_SCHEDULE" = "true" ] || [ -z "$INPUT_BRANCH" ]; then
+            BRANCH_STRING="edge"
+          elif [ "$INPUT_BRANCH" = "all" ]; then
+            BRANCH_STRING="edge vendor"
+          else
+            BRANCH_STRING="$INPUT_BRANCH"
+          fi
+
+          JSON_BRANCH=$(echo "$BRANCH_STRING" | jq -c -R 'split(" ") | map(select(. != ""))')
+          echo "BRANCH=${JSON_BRANCH}" >> "$GITHUB_OUTPUT"
 
           if [ "$IS_SCHEDULE" = "true" ] || [ "$INPUT_BOARD" = "all" ] || [ -z "$INPUT_BOARD" ]; then
             BOARD_STRING="${{ env.BOARD }}"
@@ -183,10 +206,11 @@ jobs:
             RELEASE_STRING="$INPUT_RELEASE"
           fi
 
-          if [ "$IS_SCHEDULE" = "true" ] || [ "$INPUT_DESKTOP" = "minimal_and_server" ]; then
+          if [ "$INPUT_DESKTOP" = "minimal_and_server" ]; then
             JSON_DESKTOP='["minimal", "server"]'
           else
-            JSON_DESKTOP=$(jq -nc --arg d "${INPUT_DESKTOP:-minimal}" '[$d]')
+            TARGET_DESKTOP="${INPUT_DESKTOP:-minimal}"
+            JSON_DESKTOP=$(jq -nc --arg d "$TARGET_DESKTOP" '[$d]')
           fi
 
           JSON_BOARD=$(echo "$BOARD_STRING" | jq -c -R 'split(" ") | map(select(. != ""))')
@@ -225,8 +249,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        BRANCH: [edge, vendor]
         BOARD: ${{ fromJson(needs.Prepare_Build.outputs.KERNEL_BOARDS) }}
+        BRANCH: ${{ fromJson(needs.Prepare_Build.outputs.BRANCH) }}
 
     steps:
       - name: "Free Disk Space"
@@ -315,8 +339,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        BRANCH: [ edge, vendor ]
         BOARD: ${{ fromJson(needs.Prepare_Build.outputs.BOARD) }} 
+        BRANCH: ${{ fromJson(needs.Prepare_Build.outputs.BRANCH) }}
         RELEASE: ${{ fromJson(needs.Prepare_Build.outputs.RELEASE) }}
         DESKTOP: ${{ fromJson(needs.Prepare_Build.outputs.DESKTOP) }}
         exclude:
@@ -621,7 +645,7 @@ jobs:
             done
           done
 
-# ---------------------------------------------------------------
+      # ---------------------------------------------------------------
       # 2. 构建并正确签名 Alpine 源
       # ---------------------------------------------------------------
       - name: "Setup and Populate Alpine Repository"
@@ -630,6 +654,14 @@ jobs:
           set -e
           HAS_ALPINE_KEY="false"
           KEY_NAME="alpine-actions.rsa.pub"
+
+          # 确保有最新版的 apk.static (支持 mkpkg)
+          if ! command -v apk.static >/dev/null 2>&1; then
+            echo "下载最新版 apk.static..."
+            wget -qO /usr/local/bin/apk.static https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.0_pre4/x86_64/apk.static || \
+            wget -qO /usr/local/bin/apk.static https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/apk-tools-static-3.0.0_pre4-r0.apk
+            chmod +x /usr/local/bin/apk.static
+          fi
 
           if [ -n "${{ secrets.ALPINE_PRIVATE_KEY }}" ]; then
             echo "${{ secrets.ALPINE_PRIVATE_KEY }}" > /tmp/alpine.rsa
@@ -640,10 +672,10 @@ jobs:
             HAS_ALPINE_KEY="true"
             echo "成功载入 ALPINE_PRIVATE_KEY，已导出公钥 ${KEY_NAME}"
           else
-            echo "未配置 ALPINE_PRIVATE_KEY，生成免签索引 (测试模式)"
+            echo "未配置 ALPINE_PRIVATE_KEY，生成免签模式"
           fi
 
-          # 2. 从 DEB 包解包构建 APK
+          # 2. 从 DEB 包解包构建标准 APK
           for deb in artifacts/debs/kernel-debs-*/linux-image-*.deb; do
             [ -f "$deb" ] || continue
 
@@ -675,58 +707,53 @@ jobs:
             REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
             [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
 
-            # 将 -rc 替换为 _rc (Alpine 仅支持下划线表示候选版)
+            # 将 -rc 替换为 _rc
             CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//" | sed 's/-rc/_rc/')
-
-            # 关键：严格定义带有 -r0 的 PKG_VER
             PKG_VER="${CLEAN_KVER}-r0"
             APK_NAME="linux-${BRANCH}-${FAMILY}"
+            OUTPUT_APK="${TARGET_DIR}/${APK_NAME}-${PKG_VER}.apk"
 
-            # 写入标准的 .PKGINFO
-            {
-              echo "pkgname = ${APK_NAME}"
-              echo "pkgver = ${PKG_VER}"
-              echo "pkgdesc = Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}"
-              echo "url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
-              echo "builddate = $(date +%s)"
-              echo "packager = GitHub Actions (${GITHUB_ACTOR})"
-              echo "size = $(du -sb "$TMP_ROOT" | cut -f1)"
-              echo "arch = aarch64"
-              echo "origin = ${APK_NAME}"
-            } > "$TMP_ROOT/.PKGINFO"
+            # -------------------------------------------------------------
+            # 【核心修复】：使用 apk.static mkpkg 生成标准合规的 APK 文件
+            # -------------------------------------------------------------
+            MKPKG_ARGS=(
+              --info "name:${APK_NAME}"
+              --info "version:${PKG_VER}"
+              --info "description:Universal Linux Kernel (${BRANCH}) and DTBs for ${FAMILY}"
+              --info "arch:aarch64"
+              --info "origin:${APK_NAME}"
+              --info "url:${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+              --files "$TMP_ROOT"
+              --output "$OUTPUT_APK"
+            )
 
-            TARGET_DIRS=""
-            for d in boot lib usr etc; do
-              [ -d "$TMP_ROOT/$d" ] && TARGET_DIRS="$TARGET_DIRS $d"
-            done
+            # 如果存在签名私钥，直接为包注入签名
+            if [ "$HAS_ALPINE_KEY" = "true" ]; then
+              MKPKG_ARGS+=(--sign-key /tmp/alpine.rsa)
+            fi
 
-            # 【关键修复点】：文件名必须使用 ${PKG_VER}，这样就会带有 -r0.apk
-            tar -czf "${TARGET_DIR}/${APK_NAME}-${PKG_VER}.apk" -C "$TMP_ROOT" .PKGINFO $TARGET_DIRS
-            echo "已生成: ${TARGET_DIR}/${APK_NAME}-${PKG_VER}.apk"
+            apk.static mkpkg "${MKPKG_ARGS[@]}"
+            echo "已成功生成标准合规 APK: $OUTPUT_APK"
 
             rm -rf "$TMP_ROOT"
           done
 
-          # 3. 生成索引与签名
+          # 3. 生成索引并签名 APKINDEX
           for fam_dir in ./repo/alpine/*; do
             ARCH_DIR="$fam_dir/aarch64"
             if [ -d "$ARCH_DIR" ]; then
               cd "$ARCH_DIR"
               if ls *.apk >/dev/null 2>&1; then
-                # 清理旧索引避免冲突
                 rm -f APKINDEX.*
-
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "正在为 $(basename "$fam_dir") 生成带官方数字签名的 APKINDEX..."
-                  # 原生使用 --sign-key 直接生成符合 Alpine 规范的已签名 APKINDEX.tar.gz
+                  echo "正在为 $(basename "$fam_dir") 生成已签名的 APKINDEX..."
                   apk.static index \
                     --allow-untrusted \
                     --sign-key /tmp/alpine.rsa \
                     -o APKINDEX.tar.gz \
                     *.apk
-                  echo "签名完成！"
                 else
-                  echo "生成免签测试索引..."
+                  echo "生成免签索引..."
                   apk.static index --allow-untrusted -o APKINDEX.tar.gz *.apk
                 fi
               fi
@@ -734,12 +761,12 @@ jobs:
             fi
           done
 
-          # 清理私钥
           rm -f /tmp/alpine.rsa
+
       # ---------------------------------------------------------------
       # 3. 部署到 GitHub Pages
       # ---------------------------------------------------------------
-      - name: "Deploy repository to GitHub Pages"
+      - name: "GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
