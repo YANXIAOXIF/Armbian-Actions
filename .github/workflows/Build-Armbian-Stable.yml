@@ -1,19 +1,18 @@
-# Workflow Name
 name: "Armbian Build Stable"
 
 # ====================================================================
-#  TRIGGERS
+# TRIGGERS
 # ====================================================================
 on:
   schedule:
-    # 每周日凌晨 0:00 (UTC) 自动运行
+    # Trigger automatically at 00:00 UTC on the 1st and 15th of each month
     - cron: '0 0 1,15 * *'
 
   workflow_dispatch:
     inputs:
       BOARD:
+        description: 'Target Board'
         type: choice
-        description: 'Board'
         options:
           - lemonpi
           - som3588-cat
@@ -21,229 +20,186 @@ on:
           - uz801
           - all
         default: 'all'
-        
+
       BRANCH:
-        description: "Branch to use"
-        required: true
+        description: "Kernel Branch"
         type: choice
         options:
-          - vendor
           - edge
+          - vendor
           - all
         default: 'edge'
 
-      RELEASE_CHOICE:
+      RELEASE:
+        description: "OS Release"
         type: choice
-        description: "Which release(s) to build"
         options:
           - default_schedule
           - all
           - bookworm
           - bullseye
-          - buster
           - focal
           - jammy
           - noble
           - oracular
           - plucky
           - resolute
-          - sid
           - trixie
         default: 'default_schedule'
 
       DESKTOP:
+        description: "Desktop Environment"
         type: choice
-        description: "Desktop environment"
         options:
           - minimal
           - server
-          - gnome
-          - budgie
-          - cinnamon
-          - i3-wm
-          - kde-neon
-          - kde-plasma
-          - mate
-          - xfce
-          - xmonad
           - minimal_and_server
+          - xfce
+          - gnome
         default: 'minimal'
 
       ENABLE_EXTENSIONS:
+        description: "Armbian Extensions"
         type: choice
-        description: "Armbian extension packages"
-        options: [ 'mesa-vpu', ' ' ]
-        default: " "
+        options:
+          - 'mesa-vpu'
+          - ' '
+        default: ' '
 
       DOCKER:
+        description: "Build using Docker container"
         type: choice
-        description: "Build type: yes = Docker, no = Actions"
-        required: false
-        options: [ 'yes', 'no' ]
+        options:
+          - 'no'
+          - 'yes'
         default: 'no'
-      
+
       NIGHTLY:
-        description: "Build type: yes = Nightly, no = Stable"
-        required: false
-        options: [ 'yes', 'no' ]
+        description: "Nightly Build"
         type: choice
+        options:
+          - 'no'
+          - 'yes'
         default: 'no'
 
       ROOTFS:
+        description: "Root Filesystem"
         type: choice
-        description: "Root filesystem"
         options:
           - ext4
           - btrfs
         default: 'ext4'
 
 # ====================================================================
-#  PERMISSIONS & CONCURRENCY
+# PERMISSIONS & CONCURRENCY
 # ====================================================================
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  DEFAULT_SCHEDULE_RELEASES: "resolute trixie"
+  ALL_BOARDS: "lemonpi som3588-cat ufi001c uz801"
+  SCHEDULE_RELEASES: "resolute trixie"
   ALL_RELEASES: "bookworm bullseye buster focal jammy noble oracular plucky resolute sid trixie"
-  BOARD: "lemonpi som3588-cat ufi001c uz801"
 
 # ====================================================================
-#  JOBS
+# JOBS
 # ====================================================================
 jobs:
   # ====================================================================
-  # JOB 0: Prepare Build Parameters and Matrix 
+  # JOB 0: Prepare Build Parameters and Matrix
   # ====================================================================
   Prepare_Build:
-    name: "Prepare Build Parameters & Matrix"
+    name: "Prepare Build Parameters"
     runs-on: ubuntu-latest
     outputs:
-      BOARD: ${{ steps.normalize_params.outputs.BOARD }}
-      BRANCH: ${{ steps.normalize_params.outputs.BRANCH }}
-      KERNEL_BOARDS: ${{ steps.normalize_params.outputs.KERNEL_BOARDS }}
-      RELEASE: ${{ steps.normalize_params.outputs.RELEASE }}
-      RELEASE_STRING: ${{ steps.normalize_params.outputs.RELEASE_STRING }}
-      DESKTOP: ${{ steps.normalize_params.outputs.DESKTOP }}
-      ENABLE_EXTENSIONS: ${{ steps.normalize_params.outputs.ENABLE_EXTENSIONS }}
-      NIGHTLY: ${{ steps.normalize_params.outputs.NIGHTLY }}
-      DOCKER: ${{ steps.normalize_params.outputs.DOCKER }}
-      ROOTFS: ${{ steps.normalize_params.outputs.ROOTFS }}
-      VERSION: ${{ steps.get_version.outputs.VERSION }}
+      BOARD: ${{ steps.parse.outputs.BOARD }}
+      BRANCH: ${{ steps.parse.outputs.BRANCH }}
+      KERNEL_BOARDS: ${{ steps.parse.outputs.KERNEL_BOARDS }}
+      RELEASE: ${{ steps.parse.outputs.RELEASE }}
+      DESKTOP: ${{ steps.parse.outputs.DESKTOP }}
+      EXTENSIONS: ${{ steps.parse.outputs.EXTENSIONS }}
+      NIGHTLY: ${{ steps.parse.outputs.NIGHTLY }}
+      DOCKER: ${{ steps.parse.outputs.DOCKER }}
+      ROOTFS: ${{ steps.parse.outputs.ROOTFS }}
+      VERSION: ${{ steps.parse.outputs.VERSION }}
 
     steps:
-      - name: "Checkout OS Source to get Version"
-        uses: actions/checkout@v7
-        with:
-          repository: armbian/os
-          path: os
-      - name: "Checkout Build System to get Version"
-        uses: actions/checkout@v7
-        with:
-          repository: armbian/build
-          path: build
-
-      - name: "Get Armbian VERSIONOS"
-        id: get_versionos
-        run: |
-          VERSIONOS=$(jq -r '.version' os/nightly.json)
-          echo "VERSION=${VERSIONOS}" >> "$GITHUB_OUTPUT"
-          echo "Armbian target version: ${VERSIONOS}"
-
-      - name: "Get Armbian Version"
-        id: get_version
-        run: |
-          VERSION=$(cat build/VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Armbian version for this run: ${VERSION}"
-      
-
-      - name: "Normalize & Export Matrix Parameters"
-        id: normalize_params
+      - name: "Parse and Normalize Parameters"
+        id: parse
         shell: bash
         run: |
-          IS_SCHEDULE="${{ github.event_name == 'schedule' }}"
-          INPUT_BOARD="${{ inputs.BOARD }}"
-          INPUT_BRANCH="${{ inputs.BRANCH }}"
-          INPUT_RELEASE="${{ inputs.RELEASE_CHOICE }}"
-          INPUT_DESKTOP="${{ inputs.DESKTOP }}"
+          set -euo pipefail
+          IS_SCHED="${{ github.event_name == 'schedule' }}"
 
-          if [ "$IS_SCHEDULE" = "true" ] || [ -z "$INPUT_BRANCH" ]; then
-            BRANCH_STRING="edge"
-          elif [ "$INPUT_BRANCH" = "all" ]; then
-            BRANCH_STRING="edge vendor"
+          # 1. Fetch current Armbian release version from upstream
+          ARMBIAN_VER=$(curl -fsSL https://raw.githubusercontent.com/armbian/build/main/VERSION || echo "24.05.0")
+          echo "VERSION=${ARMBIAN_VER}" >> "$GITHUB_OUTPUT"
+          echo "Armbian Version: ${ARMBIAN_VER}"
+
+          # 2. Kernel Branch normalization (Default: edge)
+          IN_BRANCH="${{ inputs.BRANCH }}"
+          if [ "$IS_SCHED" = "true" ] || [ -z "$IN_BRANCH" ]; then
+            BRANCH_STR="edge"
+          elif [ "$IN_BRANCH" = "all" ]; then
+            BRANCH_STR="edge vendor"
           else
-            BRANCH_STRING="$INPUT_BRANCH"
+            BRANCH_STR="$IN_BRANCH"
           fi
+          echo "BRANCH=$(echo "$BRANCH_STR" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
 
-          JSON_BRANCH=$(echo "$BRANCH_STRING" | jq -c -R 'split(" ") | map(select(. != ""))')
-          echo "BRANCH=${JSON_BRANCH}" >> "$GITHUB_OUTPUT"
-
-          if [ "$IS_SCHEDULE" = "true" ] || [ "$INPUT_BOARD" = "all" ] || [ -z "$INPUT_BOARD" ]; then
-            BOARD_STRING="${{ env.BOARD }}"
+          # 3. Target boards normalization
+          IN_BOARD="${{ inputs.BOARD }}"
+          if [ "$IS_SCHED" = "true" ] || [ "$IN_BOARD" = "all" ] || [ -z "$IN_BOARD" ]; then
+            BOARD_LIST="${{ env.ALL_BOARDS }}"
           else
-            BOARD_STRING="$INPUT_BOARD"
+            BOARD_LIST="$IN_BOARD"
           fi
+          echo "BOARD=$(echo "$BOARD_LIST" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
 
-          KERNEL_BOARD_LIST=""
-          if echo "$BOARD_STRING" | grep -Eq "lemonpi|som3588-cat"; then
-            KERNEL_BOARD_LIST="${KERNEL_BOARD_LIST} lemonpi"
-          fi
-          if echo "$BOARD_STRING" | grep -Eq "ufi001c|uz801"; then
-            KERNEL_BOARD_LIST="${KERNEL_BOARD_LIST} ufi001c"
-          fi
-          JSON_KERNEL_BOARDS=$(echo "$KERNEL_BOARD_LIST" | jq -c -R 'split(" ") | map(select(. != ""))')
+          # 3. Mapping compatible boards for kernel compilation deduplication
+          K_LIST=""
+          echo "$BOARD_LIST" | grep -Eq "lemonpi|som3588-cat" && K_LIST="${K_LIST} lemonpi"
+          echo "$BOARD_LIST" | grep -Eq "ufi001c|uz801" && K_LIST="${K_LIST} ufi001c"
+          echo "KERNEL_BOARDS=$(echo "$K_LIST" | jq -c -R 'split(" ") | map(select(. != ""))')" >> "$GITHUB_OUTPUT"
 
-          if [ "$IS_SCHEDULE" = "true" ] || [ "$INPUT_RELEASE" = "default_schedule" ] || [ -z "$INPUT_RELEASE" ]; then
-            RELEASE_STRING="${{ env.DEFAULT_SCHEDULE_RELEASES }}"
-          elif [ "$INPUT_RELEASE" = "all" ]; then
-            RELEASE_STRING="${{ env.ALL_RELEASES }}"
+          # 5. Target OS release distributions
+          IN_RELEASE="${{ inputs.RELEASE }}"
+          if [ "$IS_SCHED" = "true" ] || [ "$IN_RELEASE" = "default_schedule" ] || [ -z "$IN_RELEASE" ]; then
+            REL_STR="${{ env.SCHEDULE_RELEASES }}"
+          elif [ "$IN_RELEASE" = "all" ]; then
+            REL_STR="${{ env.ALL_RELEASES }}"
           else
-            RELEASE_STRING="$INPUT_RELEASE"
+            REL_STR="$IN_RELEASE"
           fi
+          echo "RELEASE=$(echo "$REL_STR" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
 
-          if [ "$INPUT_DESKTOP" = "minimal_and_server" ]; then
-            JSON_DESKTOP='["minimal", "server"]'
+          # 6. Desktop environment selection
+          IN_DESKTOP="${{ inputs.DESKTOP }}"
+          if [ "$IN_DESKTOP" = "minimal_and_server" ]; then
+            echo 'DESKTOP=["minimal", "server"]' >> "$GITHUB_OUTPUT"
           else
-            TARGET_DESKTOP="${INPUT_DESKTOP:-minimal}"
-            JSON_DESKTOP=$(jq -nc --arg d "$TARGET_DESKTOP" '[$d]')
+            TARGET_DESK="${IN_DESKTOP:-minimal}"
+            echo "DESKTOP=$(jq -nc --arg d "$TARGET_DESK" '[$d]')" >> "$GITHUB_OUTPUT"
           fi
 
-          JSON_BOARD=$(echo "$BOARD_STRING" | jq -c -R 'split(" ") | map(select(. != ""))')
-          JSON_RELEASE=$(echo "$RELEASE_STRING" | jq -c -R 'split(" ") | map(select(. != ""))')
-
-          if [ "$IS_SCHEDULE" = "true" ]; then
-            NIGHTLY="no"
-            DOCKER="no"
-            ROOTFS="ext4"
-            EXTENSIONS=" "
-          else
-            NIGHTLY="${{ inputs.NIGHTLY || 'no' }}"
-            DOCKER="${{ inputs.DOCKER || 'no' }}"
-            ROOTFS="${{ inputs.ROOTFS || 'ext4' }}"
-            EXTENSIONS="${{ inputs.ENABLE_EXTENSIONS || ' ' }}"
-          fi
-
-          echo "BOARD=${JSON_BOARD}" >> "$GITHUB_OUTPUT"
-          echo "KERNEL_BOARDS=${JSON_KERNEL_BOARDS}" >> "$GITHUB_OUTPUT"
-          echo "RELEASE=${JSON_RELEASE}" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_STRING=${RELEASE_STRING}" >> "$GITHUB_OUTPUT"
-          echo "DESKTOP=${JSON_DESKTOP}" >> "$GITHUB_OUTPUT"
-          echo "NIGHTLY=${NIGHTLY}" >> "$GITHUB_OUTPUT"
-          echo "DOCKER=${DOCKER}" >> "$GITHUB_OUTPUT"
-          echo "ROOTFS=${ROOTFS}" >> "$GITHUB_OUTPUT"
-          echo "ENABLE_EXTENSIONS=${EXTENSIONS}" >> "$GITHUB_OUTPUT"
+          # 7. General configuration flags
+          echo "NIGHTLY=${{ inputs.NIGHTLY || 'no' }}" >> "$GITHUB_OUTPUT"
+          echo "DOCKER=${{ inputs.DOCKER || 'no' }}" >> "$GITHUB_OUTPUT"
+          echo "ROOTFS=${{ inputs.ROOTFS || 'ext4' }}" >> "$GITHUB_OUTPUT"
+          echo "EXTENSIONS=${{ inputs.ENABLE_EXTENSIONS || ' ' }}" >> "$GITHUB_OUTPUT"
 
   # ====================================================================
   # JOB 1: Build Kernel Packages
   # ====================================================================
   Build_Kernel:
-    needs: Prepare_Build
     name: "Build Kernel [${{ matrix.BOARD }} ${{ matrix.BRANCH }}]"
+    needs: Prepare_Build
     runs-on: ubuntu-latest
     timeout-minutes: 300
     strategy:
@@ -264,32 +220,22 @@ jobs:
           docker-images: true
           swap-storage: true
 
-      - name: "Checkout Board Source"
+      - name: "Checkout Board Customizations"
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          clean: false
           path: custom
 
-      - name: "Checkout Build System"
+      - name: "Checkout Build Framework"
         uses: actions/checkout@v7
         with:
           repository: armbian/build
-          clean: false
-          ref: main
           path: build
 
-      - name: "Checkout OS Source" 
-        uses: actions/checkout@v7
-        with:
-          repository: armbian/os
-          fetch-depth: 0
-          clean: false
-          path: os
-
-      - name: "Setup Kernel Build Environment"
+      - name: "Setup Kernel Build Patches"
         shell: bash
         run: |
+          set -euo pipefail
+          shopt -s nullglob
           for verdir in ./build/patch/kernel/archive/rockchip64-7.*; do
             if [ -d "$verdir" ]; then
               target=$(basename "$verdir")
@@ -298,12 +244,13 @@ jobs:
               echo "rockchip64 patches synced to $target"
             fi
           done
-          
-          mkdir -p ./build/userpatches
-          cp -rf ./custom/Addboard/* ./build/ || true
-          cp -rf ./os/userpatches/* ./build/userpatches/ || true
+          shopt -u nullglob
 
-      - name: "Compile Kernel [${{ matrix.BOARD }} ${{ matrix.BRANCH }}]"
+          mkdir -p ./build/userpatches
+          [ -d ./custom/Addboard ] && cp -rf ./custom/Addboard/* ./build/ || true
+          [ -d ./os/userpatches ] && cp -rf ./os/userpatches/* ./build/userpatches/ || true
+
+      - name: "Compile Kernel"
         shell: bash
         run: |
           cd ./build
@@ -322,7 +269,7 @@ jobs:
             EXPERT="yes" \
             VENDOR=Armbian
 
-      - name: "Upload Kernel Artifact"
+      - name: "Upload Kernel Artifacts"
         uses: actions/upload-artifact@v7
         with:
           name: kernel-debs-${{ matrix.BOARD }}-${{ matrix.BRANCH }}
@@ -330,7 +277,7 @@ jobs:
           if-no-files-found: error
 
   # ====================================================================
-  # JOB 2: Build Armbian Image
+  # JOB 2: Build Armbian OS Image
   # ====================================================================
   Build_Image:
     name: "Build Image [${{ matrix.BOARD }} ${{ matrix.BRANCH }} ${{ matrix.RELEASE }} ${{ matrix.DESKTOP }}]"
@@ -339,7 +286,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        BOARD: ${{ fromJson(needs.Prepare_Build.outputs.BOARD) }} 
+        BOARD: ${{ fromJson(needs.Prepare_Build.outputs.BOARD) }}
         BRANCH: ${{ fromJson(needs.Prepare_Build.outputs.BRANCH) }}
         RELEASE: ${{ fromJson(needs.Prepare_Build.outputs.RELEASE) }}
         DESKTOP: ${{ fromJson(needs.Prepare_Build.outputs.DESKTOP) }}
@@ -361,82 +308,76 @@ jobs:
           docker-images: true
           swap-storage: true
 
-      - name: "Checkout Board Source"
+      - name: "Checkout Board Customizations"
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-          clean: false
           path: custom
 
-      - name: "Checkout Build System"
+      - name: "Checkout Build Framework"
         uses: actions/checkout@v7
         with:
           repository: armbian/build
-          clean: false
-          ref: main
           path: build
 
       - name: "Checkout OS Source"
         uses: actions/checkout@v7
         with:
           repository: armbian/os
-          fetch-depth: 0
-          clean: false
           path: os
 
       - name: "Resolve Kernel Target"
         shell: bash
         run: |
           case "${{ matrix.BOARD }}" in
-            lemonpi|som3588-cat)
-              echo "KERNEL_TARGET=lemonpi" >> "$GITHUB_ENV"
-              ;;
-            ufi001c|uz801)
-              echo "KERNEL_TARGET=ufi001c" >> "$GITHUB_ENV"
-              ;;
-            *)
-              echo "KERNEL_TARGET=${{ matrix.BOARD }}" >> "$GITHUB_ENV"
-              ;;
+            lemonpi|som3588-cat) echo "KERNEL_TARGET=lemonpi" >> "$GITHUB_ENV" ;;
+            ufi001c|uz801)       echo "KERNEL_TARGET=ufi001c" >> "$GITHUB_ENV" ;;
+            *)                   echo "KERNEL_TARGET=${{ matrix.BOARD }}" >> "$GITHUB_ENV" ;;
           esac
 
-      - name: "Download Kernel Artifact"
+      - name: "Download Prebuilt Kernel DEBs"
         uses: actions/download-artifact@v8
         with:
-
           name: kernel-debs-${{ env.KERNEL_TARGET }}-${{ matrix.BRANCH }}
           path: ./prebuilt-kernel-debs
 
       - name: "Setup Image Build Environment"
         shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update && sudo apt-get install -y --no-install-recommends mkbootimg android-sdk-libsparse-utils
-          
-          if [[ "${{ matrix.DESKTOP }}" == "minimal" ]]; then
-            echo "BUILD_DESKTOP="no"" >> $GITHUB_ENV
-            echo "BUILD_MINIMAL="yes"" >> $GITHUB_ENV
-          elif [[ "${{ matrix.DESKTOP }}" == "server" ]]; then
-            echo "BUILD_DESKTOP="no"" >> $GITHUB_ENV
-            echo "BUILD_MINIMAL="no"" >> $GITHUB_ENV
+
+          if [ "${{ matrix.DESKTOP }}" = "minimal" ]; then
+            echo "BUILD_DESKTOP=no" >> "$GITHUB_ENV"
+            echo "BUILD_MINIMAL=yes" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT=" >> "$GITHUB_ENV"
+            echo "DESKTOP_APPGROUPS_SELECTED=" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT_CONFIG_NAME=" >> "$GITHUB_ENV"
+          elif [ "${{ matrix.DESKTOP }}" = "server" ]; then
+            echo "BUILD_DESKTOP=no" >> "$GITHUB_ENV"
+            echo "BUILD_MINIMAL=no" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT=" >> "$GITHUB_ENV"
+            echo "DESKTOP_APPGROUPS_SELECTED=" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT_CONFIG_NAME=" >> "$GITHUB_ENV"
           else
-            echo "BUILD_DESKTOP="yes"" >> $GITHUB_ENV
-            echo "BUILD_MINIMAL="no"" >> $GITHUB_ENV
-            echo "DESKTOP_ENVIRONMENT="${{ matrix.DESKTOP }}"" >> $GITHUB_ENV
-            echo "DESKTOP_APPGROUPS_SELECTED="browsers"" >> $GITHUB_ENV
-            echo "DESKTOP_ENVIRONMENT_CONFIG_NAME="config_base"" >> $GITHUB_ENV
+            echo "BUILD_DESKTOP=yes" >> "$GITHUB_ENV"
+            echo "BUILD_MINIMAL=no" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT=${{ matrix.DESKTOP }}" >> "$GITHUB_ENV"
+            echo "DESKTOP_APPGROUPS_SELECTED=browsers" >> "$GITHUB_ENV"
+            echo "DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base" >> "$GITHUB_ENV"
           fi
 
           mkdir -p ./build/userpatches ./build/output/debs
-          cp -rf ./custom/Addboard/* ./build/ || true
-          cp -rf ./os/userpatches/* ./build/userpatches/ || true
+          [ -d ./custom/Addboard ] && cp -rf ./custom/Addboard/* ./build/ || true
+          [ -d ./os/userpatches ] && cp -rf ./os/userpatches/* ./build/userpatches/ || true
           cp -v ./prebuilt-kernel-debs/*.deb ./build/output/debs/
-          
+
       - name: "Import GPG Key for Signing Images"
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.ARMBIAN_PRIVATE_KEY }}
           passphrase: ${{ secrets.ARMBIAN_PASSPHRASE }}
-          
-      - name: "Compile Image [${{ matrix.BOARD }} ${{ matrix.RELEASE }}]"
+
+      - name: "Compile Armbian Image"
         shell: bash
         run: |
           cd ./build
@@ -452,7 +393,7 @@ jobs:
             DESKTOP_ENVIRONMENT="${{ env.DESKTOP_ENVIRONMENT }}" \
             DESKTOP_APPGROUPS_SELECTED="${{ env.DESKTOP_APPGROUPS_SELECTED }}" \
             DESKTOP_ENVIRONMENT_CONFIG_NAME="${{ env.DESKTOP_ENVIRONMENT_CONFIG_NAME }}" \
-            ENABLE_EXTENSIONS="${{ needs.Prepare_Build.outputs.ENABLE_EXTENSIONS }}" \
+            ENABLE_EXTENSIONS="${{ needs.Prepare_Build.outputs.EXTENSIONS }}" \
             SHARE_LOG="yes" \
             MANAGE_ACNG="no" \
             BETA="${{ needs.Prepare_Build.outputs.NIGHTLY }}" \
@@ -488,26 +429,27 @@ jobs:
       - name: "Consolidate Artifacts"
         shell: bash
         run: |
-          set -eo pipefail
+          set -euo pipefail
           mkdir -p release_assets/kernels release_assets/images
 
-          echo "--- Consolidating Kernel DEBs ---"
-          find artifacts/kernel-debs-*/ -type f -name 'linux-*.deb' 2>/dev/null | while read -r filepath; do
+          echo "===> Consolidating Kernel DEBs"
+          find artifacts/ -type f -path '*/kernel-debs-*/*' -name 'linux-*.deb' 2>/dev/null | while read -r filepath; do
             old_name=$(basename "$filepath")
             new_name=$(echo "$old_name" | sed -E 's/^(.*__[0-9.]+).*\.deb$/\1.deb/')
             cp -u "$filepath" "release_assets/kernels/$new_name"
           done
 
-          echo "--- Consolidating Images ---"
-          find artifacts/images-*/ -type f 2>/dev/null | while read -r img; do
+          echo "===> Consolidating Images"
+          find artifacts/ -type f -path '*/images-*/*' 2>/dev/null | while read -r img; do
             cp -u "$img" "release_assets/images/"
           done
 
-      - name: "Generate Release Body"
+      - name: "Generate Release Notes"
         id: generate_body
         shell: bash
         run: |
-          DIR_NAMES=$(find artifacts/ -mindepth 1 -maxdepth 1 -type d -name "images-*" | sed 's|^artifacts/images-||')
+          set -euo pipefail
+          DIR_NAMES=$(find artifacts/ -mindepth 1 -maxdepth 1 -type d -name "images-*" | sed 's|^artifacts/images-||' || true)
 
           BUILT_BOARDS=$(echo "$DIR_NAMES" | cut -d'-' -f1 | sort -u | paste -sd ", " -)
           BUILT_BRANCHES=$(echo "$DIR_NAMES" | cut -d'-' -f2 | sort -u | paste -sd ", " -)
@@ -517,7 +459,7 @@ jobs:
           cat <<EOF > body.html
           <p align='center'>
             <a href='https://www.armbian.com'>
-              <img src='https://raw.githubusercontent.com/armbian/.github/master/profile/tux-two.png' width='400'>
+              <img src='https://raw.githubusercontent.com/armbian/.github/master/profile/tux-two.png' width='400' alt='Armbian Logo'>
             </a>
           </p>
           <h1 align='center'>Armbian OS</h1>
@@ -532,14 +474,14 @@ jobs:
             <li><strong>Desktop</strong>: ${BUILT_DESKTOPS}</li>
             <li><strong>Releases</strong>: ${BUILT_RELEASES}</li>
             <li><strong>Build Type</strong>: ${{ needs.Prepare_Build.outputs.NIGHTLY == 'yes' && 'Nightly' || 'Stable' }}</li>
-            <li><strong>Verification</strong>: sha256sum and GPG signature</li>
+            <li><strong>Verification</strong>: SHA256 checksums and GPG signatures</li>
           </ul>
           <br>
           <p>Please note that Armbian Rolling Releases are not recommended for production environments. However, in most cases, they should work well.</p>
           EOF
 
       - name: "Publish Final Release with All Assets"
-        uses: ncipollo/release-action@v1.20.0
+        uses: ncipollo/release-action@v1
         with:
           tag: "Armbian_V${{ needs.Prepare_Build.outputs.VERSION }}"
           name: "Armbian_V${{ needs.Prepare_Build.outputs.VERSION }}"
@@ -548,14 +490,13 @@ jobs:
             release_assets/images/*
           allowUpdates: true
           removeArtifacts: false
-          replacesArtifacts: true 
+          replacesArtifacts: true
           token: ${{ secrets.GITHUB_TOKEN }}
           bodyFile: "body.html"
 
   # ====================================================================
   # JOB 4: Update APT and Alpine Repository
   # ====================================================================
-
   Update_APT_Repo:
     name: "Update APT & Alpine Repository"
     runs-on: ubuntu-latest
@@ -563,10 +504,9 @@ jobs:
     if: success()
     env:
       GPG_KEY_ID: ${{ secrets.ARMBIAN_KEY_ID }}
-      RELEASES: ${{ needs.Prepare_Build.outputs.RELEASE_STRING }}
 
     steps:
-      - name: "Download all kernel DEB packages"
+      - name: "Download Kernel Artifacts"
         uses: actions/download-artifact@v8
         with:
           pattern: kernel-debs-*
@@ -578,35 +518,32 @@ jobs:
           gpg_private_key: ${{ secrets.ARMBIAN_PRIVATE_KEY }}
           passphrase: ${{ secrets.ARMBIAN_PASSPHRASE }}
 
-      - name: "Install APT and Alpine repository tools"
+      - name: "Install APT and Modern Alpine Tools"
         shell: bash
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends reprepro wget binutils tar openssl
-          wget -q https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v2.14.6/x86_64/apk.static -O /tmp/apk.static
-          chmod +x /tmp/apk.static
-          sudo mv /tmp/apk.static /usr/local/bin/apk.static
+          set -euo pipefail
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends reprepro wget binutils tar openssl jq
+
+          echo "===> Installing apk-tools v3 static binary"
+          sudo wget -qO /usr/local/bin/apk.static https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.0_pre4/x86_64/apk.static
+          sudo chmod +x /usr/local/bin/apk.static
+          /usr/local/bin/apk.static --version || true
 
       - name: "Setup and Populate APT Repository"
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p repo/conf
-          > repo/conf/distributions
+          : > repo/conf/distributions
 
-          FAMILIES=$(for f in artifacts/debs/kernel-debs-*/linux-image-*.deb; do
-            [ -f "$f" ] || continue
-            dpkg-deb -f "$f" Package | sed -E 's/^linux-image-[^-]+-//'
-          done | sort -u | tr '\n' ' ')
-
+          # Identify all kernel family packages
+          FAMILIES=$(find artifacts/debs/ -type f -name 'linux-image-*.deb' -exec dpkg-deb -f {} Package \; 2>/dev/null | sed -E 's/^linux-image-[^-]+-//' | sort -u | tr '\n' ' ' || true)
           COMPONENTS="main ${FAMILIES}"
-          echo "Discovered Platform Components: ${COMPONENTS}"
 
           SIGN_LINE=""
-          if [ -n "${GPG_KEY_ID}" ]; then
-            SIGN_LINE="SignWith: ${GPG_KEY_ID}"
-            echo "Signing APT repository with key: ${GPG_KEY_ID}"
-          else
-            echo "No APT_GPG_KEY_ID provided, building unsigned APT repository."
-          fi
+          [ -n "${GPG_KEY_ID}" ] && SIGN_LINE="SignWith: ${GPG_KEY_ID}"
+
+          RELEASES="${{ join(fromJson(needs.Prepare_Build.outputs.RELEASE), ' ') }}"
 
           for codename in $RELEASES; do
             cat <<EOF >> repo/conf/distributions
@@ -621,11 +558,7 @@ jobs:
           EOF
           done
 
-          echo "--- APT distributions config ---"
-          cat repo/conf/distributions
-
-          for deb in artifacts/debs/kernel-debs-*/*.deb; do
-            [ -f "$deb" ] || continue
+          find artifacts/debs/ -type f -name '*.deb' | while read -r deb; do
             PKG_NAME=$(dpkg-deb -f "$deb" Package)
 
             TARGET_COMP="main"
@@ -645,40 +578,25 @@ jobs:
             done
           done
 
-      # ---------------------------------------------------------------
-      # 2. 构建并正确签名 Alpine 源
-      # ---------------------------------------------------------------
-      - name: "Setup and Populate Alpine Repository"
+      - name: "Build and Sign Alpine Repository (APK v3 Spec)"
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           HAS_ALPINE_KEY="false"
           KEY_NAME="alpine-actions.rsa.pub"
-
-          # 确保有最新版的 apk.static (支持 mkpkg)
-          if ! command -v apk.static >/dev/null 2>&1; then
-            echo "下载最新版 apk.static..."
-            wget -qO /usr/local/bin/apk.static https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.0_pre4/x86_64/apk.static || \
-            wget -qO /usr/local/bin/apk.static https://dl-cdn.alpinelinux.org/alpine/edge/main/x86_64/apk-tools-static-3.0.0_pre4-r0.apk
-            chmod +x /usr/local/bin/apk.static
-          fi
 
           if [ -n "${{ secrets.ALPINE_PRIVATE_KEY }}" ]; then
             echo "${{ secrets.ALPINE_PRIVATE_KEY }}" > /tmp/alpine.rsa
             chmod 600 /tmp/alpine.rsa
-            
             mkdir -p ./repo/alpine
             openssl rsa -in /tmp/alpine.rsa -pubout -out "./repo/alpine/${KEY_NAME}" 2>/dev/null || true
             HAS_ALPINE_KEY="true"
-            echo "成功载入 ALPINE_PRIVATE_KEY，已导出公钥 ${KEY_NAME}"
+            echo "Private signing key loaded. Public key exported to ./repo/alpine/${KEY_NAME}"
           else
-            echo "未配置 ALPINE_PRIVATE_KEY，生成免签模式"
+            echo "ALPINE_PRIVATE_KEY not configured. Running in untrusted mode."
           fi
 
-          # 2. 从 DEB 包解包构建标准 APK
-          for deb in artifacts/debs/kernel-debs-*/linux-image-*.deb; do
-            [ -f "$deb" ] || continue
-
+          find artifacts/debs/ -type f -name 'linux-image-*.deb' | while read -r deb; do
             PKG_NAME=$(dpkg-deb -f "$deb" Package)
             BRANCH=$(echo "$PKG_NAME" | awk -F'-' '{print $(NF-1)}')
             FAMILY=$(echo "$PKG_NAME" | awk -F'-' '{print $NF}')
@@ -704,18 +622,14 @@ jobs:
               fi
             done
 
-            REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1)
+            REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1 || true)
             [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
 
-            # 将 -rc 替换为 _rc
             CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//" | sed 's/-rc/_rc/')
             PKG_VER="${CLEAN_KVER}-r0"
             APK_NAME="linux-${BRANCH}-${FAMILY}"
             OUTPUT_APK="${TARGET_DIR}/${APK_NAME}-${PKG_VER}.apk"
 
-            # -------------------------------------------------------------
-            # 【核心修复】：使用 apk.static mkpkg 生成标准合规的 APK 文件
-            # -------------------------------------------------------------
             MKPKG_ARGS=(
               --info "name:${APK_NAME}"
               --info "version:${PKG_VER}"
@@ -727,46 +641,43 @@ jobs:
               --output "$OUTPUT_APK"
             )
 
-            # 如果存在签名私钥，直接为包注入签名
-            if [ "$HAS_ALPINE_KEY" = "true" ]; then
-              MKPKG_ARGS+=(--sign-key /tmp/alpine.rsa)
-            fi
+            [ "$HAS_ALPINE_KEY" = "true" ] && MKPKG_ARGS+=(--sign-key /tmp/alpine.rsa)
 
             apk.static mkpkg "${MKPKG_ARGS[@]}"
-            echo "已成功生成标准合规 APK: $OUTPUT_APK"
+            echo "Successfully generated APK: $OUTPUT_APK"
 
             rm -rf "$TMP_ROOT"
           done
 
-          # 3. 生成索引并签名 APKINDEX
+          # Generate index (APKINDEX) for each repository architecture
+          shopt -s nullglob
           for fam_dir in ./repo/alpine/*; do
             ARCH_DIR="$fam_dir/aarch64"
             if [ -d "$ARCH_DIR" ]; then
               cd "$ARCH_DIR"
-              if ls *.apk >/dev/null 2>&1; then
+              apk_files=(*.apk)
+              if [ ${#apk_files[@]} -gt 0 ]; then
                 rm -f APKINDEX.*
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "正在为 $(basename "$fam_dir") 生成已签名的 APKINDEX..."
+                  echo "Generating signed APKINDEX for $(basename "$fam_dir")..."
                   apk.static index \
                     --allow-untrusted \
                     --sign-key /tmp/alpine.rsa \
                     -o APKINDEX.tar.gz \
                     *.apk
                 else
-                  echo "生成免签索引..."
+                  echo "Generating unsigned test APKINDEX for $(basename "$fam_dir")..."
                   apk.static index --allow-untrusted -o APKINDEX.tar.gz *.apk
                 fi
               fi
               cd - >/dev/null
             fi
           done
+          shopt -u nullglob
 
           rm -f /tmp/alpine.rsa
 
-      # ---------------------------------------------------------------
-      # 3. 部署到 GitHub Pages
-      # ---------------------------------------------------------------
-      - name: "GitHub Pages"
+      - name: "Deploy GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
