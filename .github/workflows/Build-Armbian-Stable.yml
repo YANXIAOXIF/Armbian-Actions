@@ -649,7 +649,7 @@ jobs:
             rm -rf "$TMP_ROOT"
           done
 
-          # Generate index (APKINDEX) for each repository architecture
+          # Generate index for each repository architecture
           shopt -s nullglob
           for fam_dir in ./repo/alpine/*; do
             ARCH_DIR="$fam_dir/aarch64"
@@ -658,22 +658,24 @@ jobs:
               apk_files=(*.apk)
               if [ ${#apk_files[@]} -gt 0 ]; then
                 rm -f Packages.adb packages.adb APKINDEX.*
+
+                # 1. 生成 APK v3 索引 (Packages.adb)
                 if [ "$HAS_ALPINE_KEY" = "true" ]; then
-                  echo "Generating signed APKINDEX (v3 adb) for $(basename "$fam_dir")..."
-                  apk.static mkndx \
-                    --allow-untrusted \
-                    --sign-key /tmp/alpine.rsa \
-                    --output Packages.adb \
-                    *.apk
+                  apk.static mkndx --allow-untrusted --sign-key /tmp/alpine.rsa --output Packages.adb *.apk
                 else
-                  echo "Generating unsigned test APKINDEX (v3 adb) for $(basename "$fam_dir")..."
-                  apk.static mkndx \
-                    --allow-untrusted \
-                    --output Packages.adb \
-                    *.apk
+                  apk.static mkndx --allow-untrusted --output Packages.adb *.apk
                 fi
-                # 创建大小写软链接以兼容不同客户端
                 ln -sf Packages.adb packages.adb
+
+                # 2. 生成 APK v2 传统兼容索引 (APKINDEX.tar.gz)
+                INDEX_ARGS=(-o APKINDEX.tar.gz *.apk)
+                if [ "$HAS_ALPINE_KEY" = "true" ]; then
+                  # apk index 使用签名时通常为 --sign-key
+                  apk.static index --allow-untrusted --sign-key /tmp/alpine.rsa "${INDEX_ARGS[@]}"
+                else
+                  apk.static index --allow-untrusted "${INDEX_ARGS[@]}"
+                fi
+                echo "Generated both Packages.adb (v3) and APKINDEX.tar.gz (v2) for $(basename "$fam_dir")"
               fi
               cd - >/dev/null
             fi
