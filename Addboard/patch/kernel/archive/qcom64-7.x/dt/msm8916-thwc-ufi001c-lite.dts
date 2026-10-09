@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-thwc-ufi001c-pro.dts"
+
+/ {
+	model = "UFI001C Lite";
+	compatible = "thwc,ufi001c", "qcom,msm8916";
+	
+	leds {
+		compatible = "gpio-leds";
+
+		pinctrl-0 = <&gpio_leds_default>;
+		pinctrl-names = "default";
+
+		status = "disabled";
+
+		/*
+		 * GPIOs are board-specific.
+		 * Functions and default-states defined here are fallbacks.
+		 * Feel free to override them if your board is different.
+		 */
+		led_r: led-r {
+			color = <LED_COLOR_ID_RED>;
+			default-state = "off";
+			function = LED_FUNCTION_PANIC;
+		};
+
+		led_g: led-g {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_WLAN;
+		};
+
+		led_b: led-b {
+			color = <LED_COLOR_ID_BLUE>;
+			default-state = "off";
+			function = LED_FUNCTION_CPU;
+		};
+	};
+};
+
+&gpu {
+	status = "disabled";
+};
+
+&mdss {
+	status = "disabled";
+};
+
+&mdss_mdp {
+	status = "disabled";
+};
+
+&mdss_dsi0 {
+	status = "disabled";
+};
+
+&mdss_dsi0_phy {
+	status = "disabled";
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0>;
+	status = "disabled";
+};
+
+&mba_mem {
+	status = "disabled";
+};
+
+&mpss {
+	status = "disabled";
+};
+
+&wcnss_mem {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
