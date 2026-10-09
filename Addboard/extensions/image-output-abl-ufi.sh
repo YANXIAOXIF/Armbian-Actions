@@ -113,6 +113,10 @@ function post_build_image__900_convert_to_abl_img() {
     display_alert "Sparse Image" "Detected RootFS type: ${fstype:-unknown}" "info"
 
     if [[ "${fstype}" =~ ^ext[2-4]$ ]]; then
+        display_alert "Sparse Image" "Minimizing ext4 filesystem to smallest possible size..." "info"
+        e2fsck -fy "${ROOTFS_RAW}" >/dev/null 2>&1
+        resize2fs -M "${ROOTFS_RAW}" >/dev/null 2>&1
+        
         local block_count=$(dumpe2fs -h "${ROOTFS_RAW}" 2>/dev/null | awk '/Block count:/{print $3}')
         local block_size=$(dumpe2fs -h "${ROOTFS_RAW}" 2>/dev/null | awk '/Block size:/{print $3}')
         if [[ -n "${block_count}" && -n "${block_size}" ]]; then
