@@ -1,0 +1,29 @@
+From 121c49fcb7ce630cdb00229a230ecd12e37504f9 Mon Sep 17 00:00:00 2001
+From: YANXIAOXIH <yanxiaoxi@live.com>
+Date: Tue, 16 Sep 2026 23:19:14 +0800
+Subject: [PATCH] clk: qcom: gcc-msm8916: Add GPU frequency points for 
+ overclocking
+
+Signed-off-by: YANXIAOXIH <yanxiaoxi@live.com>
+---
+ drivers/clk/qcom/gcc-msm8916.c | 2 +++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/clk/qcom/gcc-msm8916.c b/drivers/clk/qcom/gcc-msm8916.c
+old mode 100644
+new mode 100755
+index e91406e6f527..75211fd7971b
+--- a/drivers/clk/qcom/gcc-msm8916.c
++++ b/drivers/clk/qcom/gcc-msm8916.c
+@@ -488,6 +488,8 @@ static const struct freq_tbl ftbl_gcc_oxili_gfx3d_clk[] = {
+ 	F(294912000, P_GPLL1, 3, 0, 0),
+ 	F(310000000, P_GPLL2, 3, 0, 0),
+ 	F(400000000, P_GPLL0_AUX, 2, 0, 0),
++	F(465000000, P_GPLL2, 2, 0, 0),
++	F(533333333, P_GPLL0_AUX, 1.5, 0, 0),
+ 	{ }
+ };
+ 
+-- 
+2.39.5
+
