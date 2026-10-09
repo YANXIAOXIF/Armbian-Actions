@@ -40,84 +40,72 @@
 
 	cpu_opp_table: opp-table-cpu {
 		compatible = "operating-points-v2";
-		nvmem-cells = <&speedbin_efuse>;
 		opp-shared;
 
 		/* 200 MHz */
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <900000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 400 MHz */
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <950000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 800 MHz */
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1050000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 998.4 MHz */
 		opp-998400000 {
 			opp-hz = /bits/ 64 <998400000>;
 			opp-microvolt = <1150000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1094.4 MHz */
         opp-1094400000 {
 			opp-hz = /bits/ 64 <1094400000>;
 			opp-microvolt = <1175000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1209.6 MHz */
         opp-1209600000 {
 			opp-hz = /bits/ 64 <1209600000>;
 			opp-microvolt = <1225000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1363.2 MHz */
 		opp-1363200000 {
 			opp-hz = /bits/ 64 <1363200000>;
 			opp-microvolt = <1275000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1401.6 MHz */
 		opp-1401600000 {
 			opp-hz = /bits/ 64 <1401600000>;
 			opp-microvolt = <1300000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1612.8 MHz */
 		opp-1612800000 {
 			opp-hz = /bits/ 64 <1612800000>;
 			opp-microvolt = <1325000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1843.2 MHz */
 		opp-1843200000 {
 			opp-hz = /bits/ 64 <1843200000>;
 			opp-microvolt = <1350000>;
-			opp-supported-hw = <0xff>;
 		};
 
 		/* 1958.4 MHz */
 		opp-1958400000 {
 			opp-hz = /bits/ 64 <1958400000>;
 			opp-microvolt = <1375000>;
-			opp-supported-hw = <0xff>;
 		};
 	};
 };
@@ -143,31 +131,59 @@
 
 &cpu0 {
 	operating-points-v2 = <&cpu_opp_table>;
-	nvmem-cells = <&speedbin_efuse>;
-	nvmem-cell-names = "speedbin";
 };
 
 &cpu1 {
 	operating-points-v2 = <&cpu_opp_table>;
-	nvmem-cells = <&speedbin_efuse>;
-	nvmem-cell-names = "speedbin";
 };
 
 &cpu2 {
 	operating-points-v2 = <&cpu_opp_table>;
-	nvmem-cells = <&speedbin_efuse>;
-	nvmem-cell-names = "speedbin";
 };
 
 &cpu3 {
 	operating-points-v2 = <&cpu_opp_table>;
-	nvmem-cells = <&speedbin_efuse>;
-	nvmem-cell-names = "speedbin";
 };
 
 &gpu {
 	nvmem-cells = <&speedbin_efuse>;
 	nvmem-cell-names = "speed_bin";
+	status = "okay";
+};
+
+&gpu_opp_table {
+	compatible = "operating-points-v2";
+
+	opp-533333333 {
+		opp-hz = /bits/ 64 <533333333>;
+	};
+
+	opp-465000000 {
+		opp-hz = /bits/ 64 <465000000>;
+	};
+
+	opp-400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+	};
+	
+	opp-19200000 {
+		opp-hz = /bits/ 64 <19200000>;
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	status = "okay";
+};
+
+&mdss_dsi0_phy {
 	status = "okay";
 };
 
