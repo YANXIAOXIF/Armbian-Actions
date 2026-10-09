@@ -136,10 +136,12 @@ jobs:
         run: |
           set -euo pipefail
           IS_SCHED="${{ github.event_name == 'schedule' }}"
+
           # 1. Fetch current Armbian release version from upstream
           ARMBIAN_VER=$(curl -fsSL https://raw.githubusercontent.com/armbian/build/main/VERSION || echo "24.05.0")
           echo "VERSION=${ARMBIAN_VER}" >> "$GITHUB_OUTPUT"
           echo "Armbian Version: ${ARMBIAN_VER}"
+
           # 2. Kernel Branch normalization (Default: edge)
           IN_BRANCH="${{ inputs.BRANCH }}"
           if [ "$IS_SCHED" = "true" ] || [ -z "$IN_BRANCH" ]; then
@@ -150,6 +152,7 @@ jobs:
             BRANCH_STR="$IN_BRANCH"
           fi
           echo "BRANCH=$(echo "$BRANCH_STR" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
+
           # 3. Target boards normalization
           IN_BOARD="${{ inputs.BOARD }}"
           if [ "$IS_SCHED" = "true" ] || [ "$IN_BOARD" = "all" ] || [ -z "$IN_BOARD" ]; then
@@ -158,11 +161,13 @@ jobs:
             BOARD_LIST="$IN_BOARD"
           fi
           echo "BOARD=$(echo "$BOARD_LIST" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
-          # 3. Mapping compatible boards for kernel compilation deduplication
+
+          # 4. Mapping compatible boards for kernel compilation deduplication
           K_LIST=""
           echo "$BOARD_LIST" | grep -Eq "lemonpi|som3588-cat" && K_LIST="${K_LIST} lemonpi"
           echo "$BOARD_LIST" | grep -Eq "ufi001c|uz801" && K_LIST="${K_LIST} ufi001c"
           echo "KERNEL_BOARDS=$(echo "$K_LIST" | jq -c -R 'split(" ") | map(select(. != ""))')" >> "$GITHUB_OUTPUT"
+
           # 5. Target OS release distributions
           IN_RELEASE="${{ inputs.RELEASE }}"
           if [ "$IS_SCHED" = "true" ] || [ "$IN_RELEASE" = "default_schedule" ] || [ -z "$IN_RELEASE" ]; then
@@ -173,6 +178,7 @@ jobs:
             REL_STR="$IN_RELEASE"
           fi
           echo "RELEASE=$(echo "$REL_STR" | jq -c -R 'split(" ")')" >> "$GITHUB_OUTPUT"
+
           # 6. Desktop environment selection
           IN_DESKTOP="${{ inputs.DESKTOP }}"
           if [ "$IN_DESKTOP" = "minimal_and_server" ]; then
@@ -181,11 +187,13 @@ jobs:
             TARGET_DESK="${IN_DESKTOP:-minimal}"
             echo "DESKTOP=$(jq -nc --arg d "$TARGET_DESK" '[$d]')" >> "$GITHUB_OUTPUT"
           fi
+
           # 7. General configuration flags
           echo "NIGHTLY=${{ inputs.NIGHTLY || 'no' }}" >> "$GITHUB_OUTPUT"
           echo "DOCKER=${{ inputs.DOCKER || 'no' }}" >> "$GITHUB_OUTPUT"
           echo "ROOTFS=${{ inputs.ROOTFS || 'ext4' }}" >> "$GITHUB_OUTPUT"
           echo "EXTENSIONS=${{ inputs.ENABLE_EXTENSIONS || ' ' }}" >> "$GITHUB_OUTPUT"
+
   # ====================================================================
   # JOB 1: Build Kernel Packages
   # ====================================================================
@@ -237,9 +245,11 @@ jobs:
             fi
           done
           shopt -u nullglob
+
           mkdir -p ./build/userpatches
           [ -d ./custom/Addboard ] && cp -rf ./custom/Addboard/* ./build/ || true
           [ -d ./os/userpatches ] && cp -rf ./os/userpatches/* ./build/userpatches/ || true
+
       - name: "Compile Kernel"
         shell: bash
         run: |
@@ -258,6 +268,7 @@ jobs:
             PREFER_DOCKER="${{ needs.Prepare_Build.outputs.DOCKER }}" \
             EXPERT="yes" \
             VENDOR=Armbian
+
       - name: "Upload Kernel Artifacts"
         uses: actions/upload-artifact@v7
         with:
@@ -322,6 +333,7 @@ jobs:
             ufi001c|uz801)       echo "KERNEL_TARGET=ufi001c" >> "$GITHUB_ENV" ;;
             *)                   echo "KERNEL_TARGET=${{ matrix.BOARD }}" >> "$GITHUB_ENV" ;;
           esac
+
       - name: "Download Prebuilt Kernel DEBs"
         uses: actions/download-artifact@v8
         with:
@@ -333,6 +345,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update && sudo apt-get install -y --no-install-recommends mkbootimg android-sdk-libsparse-utils
+
           if [ "${{ matrix.DESKTOP }}" = "minimal" ]; then
             echo "BUILD_DESKTOP=no" >> "$GITHUB_ENV"
             echo "BUILD_MINIMAL=yes" >> "$GITHUB_ENV"
@@ -352,10 +365,12 @@ jobs:
             echo "DESKTOP_APPGROUPS_SELECTED=browsers" >> "$GITHUB_ENV"
             echo "DESKTOP_ENVIRONMENT_CONFIG_NAME=config_base" >> "$GITHUB_ENV"
           fi
+
           mkdir -p ./build/userpatches ./build/output/debs
           [ -d ./custom/Addboard ] && cp -rf ./custom/Addboard/* ./build/ || true
           [ -d ./os/userpatches ] && cp -rf ./os/userpatches/* ./build/userpatches/ || true
           cp -v ./prebuilt-kernel-debs/*.deb ./build/output/debs/
+
       - name: "Import GPG Key for Signing Images"
         uses: crazy-max/ghaction-import-gpg@v6
         with:
@@ -388,6 +403,7 @@ jobs:
             EXPERT="yes" \
             VENDOR=Armbian \
             COMPRESS_OUTPUTIMAGE="sha,gpg,xz"
+
       - name: "Upload Image Artifact"
         uses: actions/upload-artifact@v7
         with:
@@ -415,26 +431,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release_assets/kernels release_assets/images
+
           echo "===> Consolidating Kernel DEBs"
           find artifacts/ -type f -path '*/kernel-debs-*/*' -name 'linux-*.deb' 2>/dev/null | while read -r filepath; do
             old_name=$(basename "$filepath")
             new_name=$(echo "$old_name" | sed -E 's/^(.*__[0-9.]+).*\.deb$/\1.deb/')
             cp -u "$filepath" "release_assets/kernels/$new_name"
           done
+
           echo "===> Consolidating Images"
           find artifacts/ -type f -path '*/images-*/*' 2>/dev/null | while read -r img; do
             cp -u "$img" "release_assets/images/"
           done
+
       - name: "Generate Release Notes"
         id: generate_body
         shell: bash
         run: |
           set -euo pipefail
           DIR_NAMES=$(find artifacts/ -mindepth 1 -maxdepth 1 -type d -name "images-*" | sed 's|^artifacts/images-||' || true)
+
           BUILT_BOARDS=$(echo "$DIR_NAMES" | cut -d'-' -f1 | sort -u | paste -sd ", " -)
           BUILT_BRANCHES=$(echo "$DIR_NAMES" | cut -d'-' -f2 | sort -u | paste -sd ", " -)
           BUILT_RELEASES=$(echo "$DIR_NAMES" | cut -d'-' -f3 | sort -u | paste -sd ", " -)
           BUILT_DESKTOPS=$(echo "$DIR_NAMES" | cut -d'-' -f4 | sort -u | paste -sd ", " -)
+
           cat <<EOF > body.html
           <p align='center'>
             <a href='https://www.armbian.com'>
@@ -458,6 +479,7 @@ jobs:
           <br>
           <p>Please note that Armbian Rolling Releases are not recommended for production environments. However, in most cases, they should work well.</p>
           EOF
+
       - name: "Publish Final Release with All Assets"
         uses: ncipollo/release-action@v1
         with:
@@ -489,6 +511,7 @@ jobs:
         with:
           pattern: kernel-debs-*
           path: artifacts/debs
+          merge-multiple: true
 
       - name: "Import GPG Key for APT"
         uses: crazy-max/ghaction-import-gpg@v6
@@ -501,35 +524,41 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update && sudo apt-get install -y --no-install-recommends reprepro wget binutils tar openssl jq
+
           echo "===> Installing apk-tools v3 static binary"
           sudo wget -qO /usr/local/bin/apk.static https://gitlab.alpinelinux.org/api/v4/projects/5/packages/generic/v3.0.0_pre4/x86_64/apk.static
           sudo chmod +x /usr/local/bin/apk.static
           /usr/local/bin/apk.static --version || true
+
       - name: "Setup and Populate APT Repository"
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p repo/conf
           : > repo/conf/distributions
+
           # Identify all kernel family packages
           FAMILIES=$(find artifacts/debs/ -type f -name 'linux-image-*.deb' -exec dpkg-deb -f {} Package \; 2>/dev/null | sed -E 's/^linux-image-[^-]+-//' | sort -u | tr '\n' ' ' || true)
           COMPONENTS="main ${FAMILIES}"
-          SIGN_LINE=""
-          [ -n "${GPG_KEY_ID}" ] && SIGN_LINE="SignWith: ${GPG_KEY_ID}"
+
           RELEASES="${{ join(fromJson(needs.Prepare_Build.outputs.RELEASE), ' ') }}"
+
           for codename in $RELEASES; do
-            cat <<EOF >> repo/conf/distributions
-          Origin: Armbian
-          Label: Armbian
-          Codename: ${codename}
-          Architectures: arm64
-          Components: ${COMPONENTS}
-          Description: Custom APT repository for Armbian
-          ${SIGN_LINE}
-          EOF
+            {
+              echo "Origin: Armbian"
+              echo "Label: Armbian"
+              echo "Codename: ${codename}"
+              echo "Architectures: arm64"
+              echo "Components: ${COMPONENTS}"
+              echo "Description: Custom APT repository for Armbian"
+              [ -n "${GPG_KEY_ID}" ] && echo "SignWith: ${GPG_KEY_ID}"
+              echo ""
+            } >> repo/conf/distributions
           done
+
           find artifacts/debs/ -type f -name '*.deb' | while read -r deb; do
             PKG_NAME=$(dpkg-deb -f "$deb" Package)
+
             TARGET_COMP="main"
             for fam in ${FAMILIES}; do
               if [[ "$PKG_NAME" == *"$fam"* ]]; then
@@ -537,6 +566,7 @@ jobs:
                 break
               fi
             done
+
             for codename in $RELEASES; do
               reprepro -b repo/ -V \
                 --ignore=wrongdistribution \
@@ -545,12 +575,14 @@ jobs:
                 includedeb "${codename}" "$deb"
             done
           done
+
       - name: "Build and Sign Alpine Repository (APK v3 Spec)"
         shell: bash
         run: |
           set -euo pipefail
           HAS_ALPINE_KEY="false"
           KEY_NAME="alpine-actions.rsa.pub"
+
           if [ -n "${{ secrets.ALPINE_PRIVATE_KEY }}" ]; then
             echo "${{ secrets.ALPINE_PRIVATE_KEY }}" > /tmp/alpine.rsa
             chmod 600 /tmp/alpine.rsa
@@ -561,18 +593,23 @@ jobs:
           else
             echo "ALPINE_PRIVATE_KEY not configured. Running in untrusted mode."
           fi
+
           find artifacts/debs/ -type f -name 'linux-image-*.deb' | while read -r deb; do
             PKG_NAME=$(dpkg-deb -f "$deb" Package)
             BRANCH=$(echo "$PKG_NAME" | awk -F'-' '{print $(NF-1)}')
             FAMILY=$(echo "$PKG_NAME" | awk -F'-' '{print $NF}')
+
             TARGET_DIR="./repo/alpine/${FAMILY}/aarch64"
             mkdir -p "$TARGET_DIR"
+
             TMP_ROOT="/tmp/apk_${FAMILY}_${BRANCH}"
             rm -rf "$TMP_ROOT" && mkdir -p "$TMP_ROOT"
+
             tmp_pkg=$(mktemp -d)
             ar -x "$deb" --output "$tmp_pkg"
             tar -xf "$tmp_pkg"/data.tar.* -C "$TMP_ROOT" || true
             rm -rf "$tmp_pkg"
+
             DTB_DIR=$(dirname "$deb")
             for dtb_deb in "$DTB_DIR"/linux-dtb-${BRANCH}-${FAMILY}*.deb; do
               if [ -f "$dtb_deb" ]; then
@@ -582,12 +619,15 @@ jobs:
                 rm -rf "$tmp_dtb"
               fi
             done
+
             REAL_KVER=$(ls -1 "$TMP_ROOT/lib/modules" 2>/dev/null | head -n 1 || true)
             [ -z "$REAL_KVER" ] && { rm -rf "$TMP_ROOT"; continue; }
+
             CLEAN_KVER=$(echo "$REAL_KVER" | sed "s/-${BRANCH}-${FAMILY}$//" | sed 's/-rc/_rc/')
-            PKG_VER="${CLEAN_KVER}-r0"
+            PKG_VER="${CLEAN_KVER}-r1"
             APK_NAME="linux-${BRANCH}-${FAMILY}"
             OUTPUT_APK="${TARGET_DIR}/${APK_NAME}-${PKG_VER}.apk"
+
             MKPKG_ARGS=(
               --info "name:${APK_NAME}"
               --info "version:${PKG_VER}"
@@ -598,11 +638,15 @@ jobs:
               --files "$TMP_ROOT"
               --output "$OUTPUT_APK"
             )
+
             [ "$HAS_ALPINE_KEY" = "true" ] && MKPKG_ARGS+=(--sign-key /tmp/alpine.rsa)
+
             apk.static mkpkg "${MKPKG_ARGS[@]}"
             echo "Successfully generated APK: $OUTPUT_APK"
+
             rm -rf "$TMP_ROOT"
           done
+
           # Generate index (APKINDEX) for each repository architecture
           shopt -s nullglob
           for fam_dir in ./repo/alpine/*; do
@@ -626,14 +670,15 @@ jobs:
                     --output Packages.adb \
                     *.apk
                 fi
-                # 创建大小写软链接以兼容不同客户端
                 ln -sf Packages.adb packages.adb
               fi
               cd - >/dev/null
             fi
           done
           shopt -u nullglob
+
           rm -f /tmp/alpine.rsa
+
       - name: "Deploy GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
         with:
