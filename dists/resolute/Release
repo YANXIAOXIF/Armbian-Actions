@@ -1,0 +1,28 @@
+Origin: Armbian
+Label: Armbian
+Codename: resolute
+Date: Sat, 10 Oct 2026 18:51:32 UTC
+Architectures: arm64
+Components: main qcom64
+Description: Custom APT repository for Armbian
+MD5Sum:
+ 0dcbdc937da279b9f6f38a4d85b53b54 932 main/binary-arm64/Packages
+ bc8ce8dade96b155c8c6375e3003f864 571 main/binary-arm64/Packages.gz
+ 9a463abafe34882a4ba695a50909e5dd 114 main/binary-arm64/Release
+ 6d48953c43a6d36b7305efb0404f6fcb 4521 qcom64/binary-arm64/Packages
+ a5c5b9cc5f5e03a693b92ade119a6272 1459 qcom64/binary-arm64/Packages.gz
+ ff725c9c9f809016f91961449c009958 116 qcom64/binary-arm64/Release
+SHA1:
+ f7f3c5ff9d05bf5a2725e8ca3f5e460768134b7f 932 main/binary-arm64/Packages
+ 3201a7dbe1bf48d5cc69a90d4546fa1fb7e9b208 571 main/binary-arm64/Packages.gz
+ 8b98a0719036817f16a37f5bbe4598e1374fc1de 114 main/binary-arm64/Release
+ c529e708335274e7a5133e1b8fe917c0d110100b 4521 qcom64/binary-arm64/Packages
+ fc32de5c826d9e20d5d5436f6391e08c5aa42fd6 1459 qcom64/binary-arm64/Packages.gz
+ 613b4e6e589ddac9e27a4aeedde49eb9776ea950 116 qcom64/binary-arm64/Release
+SHA256:
+ 71fca4ba13657ccf4c8b623bb8bf19dc13273a8927e60454cbb71a511ffb607c 932 main/binary-arm64/Packages
+ 43bbe7c2bf19624b3e288f1927ca8c31de9aee1cd28f017f43532c5fbf450dcb 571 main/binary-arm64/Packages.gz
+ 90f66ac7e53f55062e16abc59cd67cdb81b1cfbfbb3567b24e7ecf75720cf9ec 114 main/binary-arm64/Release
+ ab5b9a32b4d6aae070d827ff3d27389bc37b7ac345c57f9e7d3982b7f0a25785 4521 qcom64/binary-arm64/Packages
+ 97ad37ced26066dd5f4bd8a2c178996e41292b5757e7f001bace82d1800223e4 1459 qcom64/binary-arm64/Packages.gz
+ 58e29f27c057451bd46da2fc1f12fd7d28912bc5d40cdaf4356ead21901bdee5 116 qcom64/binary-arm64/Release

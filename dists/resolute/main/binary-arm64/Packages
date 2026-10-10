@@ -1,0 +1,20 @@
+Package: armbian-bsp-cli-ufi001c-edge
+Version: 26.11.0-trunk
+Architecture: arm64
+Maintainer: John Doe <john.doe@somewhere.on.planet>
+Recommends: bsdutils, parted, util-linux, toilet
+Priority: optional
+Section: kernel
+Filename: pool/main/a/armbian-bsp-cli-ufi001c-edge/armbian-bsp-cli-ufi001c-edge_26.11.0-trunk_arm64.deb
+Size: 112084
+SHA256: 550959c950f0e0235b92fb51a50b58df2ad42b1c744f891ea9d62c2564dcff50
+SHA1: c8f3cadb0916f78f6d85d46a6870025368dd9c13
+MD5sum: bb6d61bd99ca58e6a9368f5e60eccf59
+Description: Armbian CLI BSP for board 'ufi001c' branch 'edge' 
+Installed-Size: 326
+Armbian-Original-Hash: 1-PCce0d-Vc9c9-H2670-Bca89-Rff2e
+Depends: bash, linux-base, u-boot-tools, initramfs-tools, lsb-release, fping, device-tree-compiler, base-files (>= 26.11.0-trunk)
+Replaces: zram-config, armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Breaks: armbian-bsp-cli-ufi001c (<< 26.11.0-trunk)
+Provides: armbian-bsp-cli, linux-sysctl-defaults
+
