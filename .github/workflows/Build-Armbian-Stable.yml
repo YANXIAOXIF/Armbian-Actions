@@ -679,6 +679,7 @@ jobs:
           shopt -u nullglob
 
           rm -f /tmp/alpine.rsa
+          rm -rf repo/db repo/conf
 
       - name: "Deploy GitHub Pages"
         uses: peaceiris/actions-gh-pages@v4
